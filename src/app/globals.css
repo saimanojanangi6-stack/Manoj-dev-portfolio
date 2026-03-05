@@ -1,0 +1,48 @@
+/* src/app/globals.css */
+@import "tailwindcss";
+
+:root {
+  --background: #0f172a;
+  --primary: #6366f1;
+  --secondary: #06b6d4;
+}
+
+/* 1. Theme Configuration for v4 */
+@theme {
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+}
+
+body {
+  background-color: var(--background);
+  color: white;
+  scroll-behavior: smooth;
+  /* Prevents horizontal scroll on mobile animations */
+  overflow-x: hidden; 
+}
+
+/* 2. Enhanced Glassmorphism */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 3. Gradient Text Utility */
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-linear-to-r from-indigo-500 to-cyan-400;
+}
+
+/* 4. Interactive Glow Effect (Optional but Recommended) */
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* 5. Hide Scrollbar for clean UI (optional) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
