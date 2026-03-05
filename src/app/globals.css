@@ -36,13 +36,33 @@ body {
   @apply bg-clip-text text-transparent bg-linear-to-r from-indigo-500 to-cyan-400;
 }
 
-/* 4. Interactive Glow Effect (Optional but Recommended) */
+/* 4. Interactive Glow Effect */
 .hover-glow:hover {
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
   border-color: rgba(99, 102, 241, 0.5);
 }
 
-/* 5. Hide Scrollbar for clean UI (optional) */
+/* --- NEW FIXES FOR MOBILE --- */
+
+/* 5. Responsive Section Spacing */
+/* This ensures sections aren't too far apart on small screens */
+.section-padding {
+  @apply py-12 md:py-24 px-4 md:px-6;
+}
+
+/* 6. Mobile Menu Animation Helper */
+/* Prevents body from scrolling when mobile menu is open */
+.overflow-hidden {
+  overflow: hidden;
+}
+
+/* 7. Scroll Offset */
+/* Prevents the Navbar from covering section headings when clicking links */
+section {
+  scroll-margin-top: 80px;
+}
+
+/* 8. Hide Scrollbar */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

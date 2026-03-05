@@ -1,36 +1,41 @@
 import Hero from "@/components/Hero";
 import Skills from "@/components/Skills";
 import Projects from "@/components/Projects";
-// Import these once you create the files
 // import About from "@/components/About";
 // import Experience from "@/components/Experience";
 
 export default function Home() {
   return (
-    <div className="flex flex-col gap-y-20 pb-20"> 
-      {/* Hero doesn't usually need an ID if it's at the top, 
-          but adding one helps the 'Home' link */}
+    /* CHANGE: Reduced gap-y on mobile (10) while keeping it large 
+       on desktop (20) to fix the 'too much spacing' issue.
+    */
+    <div className="flex flex-col gap-y-10 md:gap-y-20 pb-12 md:pb-20"> 
+      
+      {/* Hero Section */}
       <section id="home">
         <Hero />
       </section>
 
-      {/* About Section - Add id="about" inside the component 
-        or wrap it here 
+      {/* Note for UI/UX: Ensure your Hero component has a button 
+          wrapped in <Link href="/contact"> to handle the redirect.
       */}
-      {/* <About /> */}
 
-      <section id="skills">
+      {/* <section id="about">
+        <About />
+      </section> */}
+
+      <section id="skills" className="scroll-mt-20">
         <Skills />
       </section>
 
-      <section id="projects">
+      <section id="projects" className="scroll-mt-20">
         <Projects />
       </section>
 
-      {/* <Experience /> */}
-
-      {/* Note: Contact is now a separate page (/contact), 
-          so we don't need the <Contact /> component here anymore! */}
+      {/* <section id="experience">
+        <Experience />
+      </section> */}
+      
     </div>
   );
 }
