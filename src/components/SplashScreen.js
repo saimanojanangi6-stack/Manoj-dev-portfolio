@@ -1,47 +1,58 @@
 "use client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function SplashScreen({ finishLoading }) {
-  const [counter, setCounter] = useState(0);
+  const [percent, setPercent] = useState(0);
 
   useEffect(() => {
-    // 1. Progress Counter Logic (Designer Detail)
     const interval = setInterval(() => {
-      setCounter((prev) => (prev < 100 ? prev + 1 : 100));
-    }, 20);
+      setPercent((prev) => (prev < 100 ? prev + 1 : 100));
+    }, 25);
 
-    const timeout = setTimeout(() => finishLoading(), 3000);
+    const timeout = setTimeout(() => finishLoading(), 3500);
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
   }, [finishLoading]);
 
-  const letters = "MANOJ".split("");
+  const brand = "MANOJ".split("");
 
   return (
     <motion.div 
-      initial={{ y: 0 }}
-      exit={{ y: "-100vh" }} // "Liquid" lift-off effect
-      transition={{ duration: 1, ease: [0.76, 0, 0.24, 1] }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A] overflow-hidden"
+      initial={{ opacity: 1 }}
+      /* EXIT: Instead of sliding up, we use a clip-path to reveal from the center 
+         and a scale-up to make it feel like we are zooming into the portfolio. */
+      exit={{ 
+        clipPath: "circle(0% at 50% 50%)",
+        opacity: 0,
+        transition: { duration: 1, ease: [0.76, 0, 0.24, 1] } 
+      }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#030712] overflow-hidden"
+      style={{ clipPath: "circle(150% at 50% 50%)" }}
     >
+      {/* Background Ambience */}
+      <motion.div 
+        animate={{ opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: 3, repeat: Infinity }}
+        className="absolute inset-0 bg-gradient-to-t from-indigo-950/20 to-transparent"
+      />
+
       <div className="relative flex flex-col items-center">
-        
-        {/* 2. Staggered Letter Reveal */}
-        <div className="flex overflow-hidden mb-4">
-          {letters.map((char, i) => (
+        {/* Designer Reveal with No Movement */}
+        <div className="flex items-center justify-center mb-4">
+          {brand.map((char, i) => (
             <motion.span
               key={i}
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
+              initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
               transition={{ 
-                delay: 0.1 * i, 
+                delay: 0.2 + (i * 0.1), 
                 duration: 0.8, 
-                ease: [0.33, 1, 0.68, 1] 
+                ease: "easeOut" 
               }}
-              className="text-6xl md:text-9xl font-black text-white tracking-tighter"
+              className="text-7xl md:text-9xl font-black text-white tracking-tighter"
             >
               {char}
             </motion.span>
@@ -49,37 +60,53 @@ export default function SplashScreen({ finishLoading }) {
           <motion.span 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="text-6xl md:text-9xl font-black text-indigo-500"
+            transition={{ delay: 1 }}
+            className="text-7xl md:text-9xl font-black text-indigo-500"
           >
             .
           </motion.span>
         </div>
 
-        {/* 3. Loading Progress Bar & Percentage */}
-        <div className="w-48 md:w-64 h-[1px] bg-white/10 relative overflow-hidden">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 2.5, ease: "easeInOut" }}
-            className="absolute inset-0 bg-indigo-500"
-          />
-        </div>
-        
+        {/* Technical Subtext */}
         <motion.div 
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-4 font-mono text-xs text-indigo-400 tracking-[0.3em] uppercase"
+          animate={{ opacity: 0.5 }}
+          transition={{ delay: 1.2 }}
+          className="text-[10px] font-mono text-indigo-400 uppercase tracking-[0.5em] mb-10"
         >
-          Initializing Portfolio {counter}%
+          Initializing Interface
         </motion.div>
 
-        {/* 4. Background Pulse (Subtle UI/UX touch) */}
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
-          transition={{ duration: 4, repeat: Infinity }}
-          className="absolute -z-10 w-[400px] h-[400px] bg-indigo-600/20 blur-[100px] rounded-full"
-        />
+        {/* Circular Loader */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <svg className="w-full h-full rotate-[-90deg]">
+            <circle
+              cx="32"
+              cy="32"
+              r="28"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="transparent"
+              className="text-white/5"
+            />
+            <motion.circle
+              cx="32"
+              cy="32"
+              r="28"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="transparent"
+              strokeDasharray="175.93"
+              initial={{ strokeDashoffset: 175.93 }}
+              animate={{ strokeDashoffset: 0 }}
+              transition={{ duration: 3, ease: "easeInOut" }}
+              className="text-indigo-500"
+            />
+          </svg>
+          <span className="absolute font-mono text-[10px] text-white">
+            {percent}%
+          </span>
+        </div>
       </div>
     </motion.div>
   );
