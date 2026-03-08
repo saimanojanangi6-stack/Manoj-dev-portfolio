@@ -1,59 +1,96 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 
 export default function CustomCursor() {
-  const [isHovered, setIsHovered] = useState(false);
+  // 1. Direct DOM tracking (No React State)
   const cursorX = useMotionValue(-100);
   const cursorY = useMotionValue(-100);
+  
+  // 2. Motion Values for size and opacity
+  const dotSize = useMotionValue(8);
+  const ringSize = useMotionValue(36);
+  const ringOpacity = useMotionValue(0.5);
 
-  const springConfig = { damping: 25, stiffness: 250 };
-  const cursorXSpring = useSpring(cursorX, springConfig);
-  const cursorYSpring = useSpring(cursorY, springConfig);
+  // 3. Hardware-accelerated springs
+  const springConfig = { damping: 25, stiffness: 300, mass: 0.1 };
+  
+  // Outer ring lags slightly behind for that premium "drag" effect
+  const smoothX = useSpring(cursorX, springConfig);
+  const smoothY = useSpring(cursorY, springConfig);
+  
+  // Smooth sizing transitions
+  const smoothDotSize = useSpring(dotSize, { damping: 20, stiffness: 200 });
+  const smoothRingSize = useSpring(ringSize, springConfig);
 
   useEffect(() => {
+    // Track mouse position instantly
     const moveCursor = (e) => {
       cursorX.set(e.clientX);
       cursorY.set(e.clientY);
     };
 
-    const handleHover = () => setIsHovered(true);
-    const handleUnhover = () => setIsHovered(false);
+    // --- ELITE FIX: Event Delegation ---
+    // Instead of looping through all buttons (which breaks in Next.js),
+    // we listen to the window and check what the mouse just touched.
+    const handleMouseOver = (e) => {
+      // Check if the hovered element (or its parent) is interactive
+      const isInteractive = e.target.closest("a, button, input, textarea, .interactive");
+      
+      if (isInteractive) {
+        // Hover State: Dot disappears, Ring expands and glows
+        dotSize.set(0); 
+        ringSize.set(60); 
+        ringOpacity.set(1);
+      } else {
+        // Default State
+        dotSize.set(8); 
+        ringSize.set(36); 
+        ringOpacity.set(0.4);
+      }
+    };
 
     window.addEventListener("mousemove", moveCursor);
-
-    // Attach listeners to all interactive elements
-    const targets = document.querySelectorAll("a, button, .interactive");
-    targets.forEach((target) => {
-      target.addEventListener("mouseenter", handleHover);
-      target.addEventListener("mouseleave", handleUnhover);
-    });
+    window.addEventListener("mouseover", handleMouseOver);
 
     return () => {
       window.removeEventListener("mousemove", moveCursor);
-      targets.forEach((target) => {
-        target.removeEventListener("mouseenter", handleHover);
-        target.removeEventListener("mouseleave", handleUnhover);
-      });
+      window.removeEventListener("mouseover", handleMouseOver);
     };
-  }, [cursorX, cursorY]);
+  }, [cursorX, cursorY, dotSize, ringSize, ringOpacity]);
 
   return (
-    <>
-      {/* Main Dot */}
+    // Hidden on mobile (touch devices don't need cursors and it causes scroll bugs)
+    <div className="hidden md:block pointer-events-none fixed inset-0 z-[9999]">
+      
+      {/* --- Main Precision Dot --- */}
       <motion.div
-        className="fixed top-0 left-0 w-3 h-3 bg-cyan-400 rounded-full pointer-events-none z-[9999] mix-blend-difference"
-        style={{ x: cursorX, y: cursorY, translateX: "-50%", translateY: "-50%" }}
-      />
-      {/* Outer Ring */}
-      <motion.div
-        className="fixed top-0 left-0 w-8 h-8 border border-indigo-500 rounded-full pointer-events-none z-[9998]"
-        style={{ x: cursorXSpring, y: cursorYSpring, translateX: "-50%", translateY: "-50%" }}
-        animate={{
-          scale: isHovered ? 2.5 : 1,
-          backgroundColor: isHovered ? "rgba(99, 102, 241, 0.1)" : "transparent",
+        className="absolute top-0 left-0 bg-white rounded-full mix-blend-difference pointer-events-none"
+        style={{ 
+          x: cursorX, 
+          y: cursorY, 
+          width: smoothDotSize, 
+          height: smoothDotSize, 
+          translateX: "-50%", 
+          translateY: "-50%" 
         }}
       />
-    </>
+      
+      {/* --- Outer Designer Ring --- */}
+      <motion.div
+        className="absolute top-0 left-0 border border-white rounded-full mix-blend-difference pointer-events-none flex items-center justify-center"
+        style={{ 
+          x: smoothX, 
+          y: smoothY, 
+          width: smoothRingSize, 
+          height: smoothRingSize, 
+          opacity: ringOpacity,
+          translateX: "-50%", 
+          translateY: "-50%",
+          backgroundColor: ringOpacity.get() === 1 ? "rgba(255,255,255,0.1)" : "transparent"
+        }}
+      />
+      
+    </div>
   );
 }

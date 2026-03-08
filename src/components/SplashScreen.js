@@ -1,113 +1,152 @@
 "use client";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion, animate } from "framer-motion";
 
 export default function SplashScreen({ finishLoading }) {
-  const [percent, setPercent] = useState(0);
+  const counterRef = useRef(null);
+  const [decodedText, setDecodedText] = useState("");
+  
+  const TARGET_TEXT = "MANOJ DEV.";
+  const CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPercent((prev) => (prev < 100 ? prev + 1 : 100));
-    }, 25);
+    // 1. The Hardware-Accelerated Loading Counter (0 to 100)
+    const duration = 3.5; // Total loading time
+    
+    const controls = animate(0, 100, {
+      duration: duration,
+      ease: [0.76, 0, 0.24, 1], // Aggressive cinematic ease
+      onUpdate: (value) => {
+        if (counterRef.current) {
+          counterRef.current.textContent = Math.round(value) + "%";
+        }
+      },
+      onComplete: () => {
+        // Tiny pause for impact, then trigger the split exit
+        setTimeout(() => finishLoading(), 400);
+      }
+    });
 
-    const timeout = setTimeout(() => finishLoading(), 3500);
+    // 2. The Text Decoder Effect
+    let iterations = 0;
+    const interval = setInterval(() => {
+      setDecodedText(
+        TARGET_TEXT.split("")
+          .map((letter, index) => {
+            if (index < iterations) return TARGET_TEXT[index];
+            return CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+          })
+          .join("")
+      );
+      
+      // Speed of decryption (scales with the 3.5s loading time)
+      if (iterations >= TARGET_TEXT.length) clearInterval(interval);
+      iterations += 1 / 6; 
+    }, 30);
+
     return () => {
-      clearTimeout(timeout);
+      controls.stop();
       clearInterval(interval);
     };
   }, [finishLoading]);
 
-  const brand = "MANOJ".split("");
+  // --- Elite Split-Screen Exit Variants ---
+  const slideUp = {
+    exit: { 
+      y: "-100vh", 
+      transition: { duration: 1.2, ease: [0.76, 0, 0.24, 1], delay: 0.2 } 
+    }
+  };
+  
+  const slideDown = {
+    exit: { 
+      y: "100vh", 
+      transition: { duration: 1.2, ease: [0.76, 0, 0.24, 1], delay: 0.2 } 
+    }
+  };
+
+  const contentFade = {
+    exit: { 
+      opacity: 0, 
+      scale: 1.1, 
+      filter: "blur(10px)", 
+      transition: { duration: 0.6, ease: "easeOut" } 
+    }
+  };
 
   return (
-    <motion.div 
-      initial={{ opacity: 1 }}
-      /* EXIT: Instead of sliding up, we use a clip-path to reveal from the center 
-         and a scale-up to make it feel like we are zooming into the portfolio. */
-      exit={{ 
-        clipPath: "circle(0% at 50% 50%)",
-        opacity: 0,
-        transition: { duration: 1, ease: [0.76, 0, 0.24, 1] } 
-      }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#030712] overflow-hidden"
-      style={{ clipPath: "circle(150% at 50% 50%)" }}
-    >
-      {/* Background Ambience */}
+    <div className="fixed inset-0 z-[100] pointer-events-none flex flex-col">
+      
+      {/* --- The Split Doors --- */}
+      {/* Top Door */}
       <motion.div 
-        animate={{ opacity: [0.2, 0.4, 0.2] }}
-        transition={{ duration: 3, repeat: Infinity }}
-        className="absolute inset-0 bg-gradient-to-t from-indigo-950/20 to-transparent"
+        variants={slideUp} 
+        exit="exit" 
+        className="absolute top-0 left-0 w-full h-1/2 bg-[#0a0a0a] border-b border-white/5 origin-top z-10"
+      />
+      {/* Bottom Door */}
+      <motion.div 
+        variants={slideDown} 
+        exit="exit" 
+        className="absolute bottom-0 left-0 w-full h-1/2 bg-[#0a0a0a] border-t border-white/5 origin-bottom z-10"
       />
 
-      <div className="relative flex flex-col items-center">
-        {/* Designer Reveal with No Movement */}
-        <div className="flex items-center justify-center mb-4">
-          {brand.map((char, i) => (
-            <motion.span
-              key={i}
-              initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              transition={{ 
-                delay: 0.2 + (i * 0.1), 
-                duration: 0.8, 
-                ease: "easeOut" 
-              }}
-              className="text-7xl md:text-9xl font-black text-white tracking-tighter"
-            >
-              {char}
-            </motion.span>
-          ))}
-          <motion.span 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="text-7xl md:text-9xl font-black text-indigo-500"
+      {/* --- The Content (Sits above doors, fades out right before split) --- */}
+      <motion.div 
+        variants={contentFade}
+        exit="exit"
+        className="absolute inset-0 z-20 flex flex-col items-center justify-center"
+      >
+        {/* Film Grain Noise */}
+        <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay pointer-events-none"
+          style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
+        />
+
+        {/* The Decoded Brand Name */}
+        <div className="overflow-hidden mb-8">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1 }}
+            className="text-5xl md:text-7xl lg:text-9xl font-black text-white tracking-tighter font-mono"
           >
-            .
-          </motion.span>
+            {decodedText}
+          </motion.h1>
         </div>
 
-        {/* Technical Subtext */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.5 }}
-          transition={{ delay: 1.2 }}
-          className="text-[10px] font-mono text-indigo-400 uppercase tracking-[0.5em] mb-10"
-        >
-          Initializing Interface
-        </motion.div>
-
-        {/* Circular Loader */}
-        <div className="relative w-16 h-16 flex items-center justify-center">
-          <svg className="w-full h-full rotate-[-90deg]">
-            <circle
-              cx="32"
-              cy="32"
-              r="28"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="transparent"
-              className="text-white/5"
-            />
-            <motion.circle
-              cx="32"
-              cy="32"
-              r="28"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="transparent"
-              strokeDasharray="175.93"
-              initial={{ strokeDashoffset: 175.93 }}
-              animate={{ strokeDashoffset: 0 }}
-              transition={{ duration: 3, ease: "easeInOut" }}
-              className="text-indigo-500"
-            />
-          </svg>
-          <span className="absolute font-mono text-[10px] text-white">
-            {percent}%
-          </span>
+        {/* Center Progress Box */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-[10px] md:text-xs font-mono text-cyan-400 uppercase tracking-[0.5em]">
+            System Initialization
+          </div>
+          
+          <div className="relative flex items-center justify-center">
+            {/* Massive Hollow Counter */}
+            <span 
+              ref={counterRef} 
+              className="text-[15vw] md:text-[8rem] font-black leading-none text-transparent tracking-tighter"
+              style={{ WebkitTextStroke: "1px rgba(255,255,255,0.15)" }}
+            >
+              0%
+            </span>
+            
+            {/* Overlapping Solid Counter */}
+            <span className="absolute text-2xl md:text-4xl font-black text-white mix-blend-difference">
+              Loading
+            </span>
+          </div>
         </div>
-      </div>
-    </motion.div>
+
+        {/* Viewport Progress Stroke (Traces the screen edges) */}
+        <div className="absolute inset-4 md:inset-8 border border-white/10 pointer-events-none overflow-hidden">
+          <motion.div 
+            initial={{ height: "0%" }}
+            animate={{ height: "100%" }}
+            transition={{ duration: 3.5, ease: [0.76, 0, 0.24, 1] }}
+            className="absolute top-0 left-0 w-[2px] bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
+          />
+        </div>
+      </motion.div>
+    </div>
   );
 }

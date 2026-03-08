@@ -1,68 +1,99 @@
-/* src/app/globals.css */
 @import "tailwindcss";
 
 :root {
-  --background: #0f172a;
+  /* The new deep obsidian black to match your elite components */
+  --background: #0a0a0a; 
+  --foreground: #ffffff;
   --primary: #6366f1;
   --secondary: #06b6d4;
 }
 
-/* 1. Theme Configuration for v4 */
+/* --- 1. Theme Configuration for v4 --- */
 @theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
 }
 
+/* --- 2. Base Document Styles --- */
 body {
   background-color: var(--background);
-  color: white;
-  scroll-behavior: smooth;
-  /* Prevents horizontal scroll on mobile animations */
-  overflow-x: hidden; 
+  color: var(--foreground);
+  /* Hardware acceleration for buttery smooth rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-/* 2. Enhanced Glassmorphism */
+/* --- 3. Premium Text Selection --- */
+/* When a user highlights text, it won't be the ugly default blue */
+::selection {
+  background: rgba(6, 182, 212, 0.3); /* Cyan with opacity */
+  color: #ffffff;
+}
+::-moz-selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: #ffffff;
+}
+
+/* --- 4. Custom Minimalist Scrollbar --- */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* --- 5. Mandatory Lenis Smooth Scroll CSS --- */
+html.lenis, html.lenis body {
+  height: auto;
+  width: 100vw;
+  overflow-x: hidden;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* --- 6. Upgraded Global Utilities --- */
+
+/* Ultra-Premium Glassmorphism */
 .glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: border 0.3s ease, box-shadow 0.3s ease;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
-/* 3. Gradient Text Utility */
-.text-gradient {
-  @apply bg-clip-text text-transparent bg-linear-to-r from-indigo-500 to-cyan-400;
+/* Centralized Hollow Stroke Text for massive typography */
+.stroke-text-white {
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.1);
+  color: transparent;
 }
 
-/* 4. Interactive Glow Effect */
-.hover-glow:hover {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-  border-color: rgba(99, 102, 241, 0.5);
-}
-
-/* --- NEW FIXES FOR MOBILE --- */
-
-/* 5. Responsive Section Spacing */
-/* This ensures sections aren't too far apart on small screens */
-.section-padding {
-  @apply py-12 md:py-24 px-4 md:px-6;
-}
-
-/* 6. Mobile Menu Animation Helper */
-/* Prevents body from scrolling when mobile menu is open */
+/* Mobile Menu Animation Helper */
 .overflow-hidden {
   overflow: hidden;
 }
 
-/* 7. Scroll Offset */
-/* Prevents the Navbar from covering section headings when clicking links */
+/* Scroll Offset for Anchor Links */
 section {
   scroll-margin-top: 80px;
-}
-
-/* 8. Hide Scrollbar */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
 }

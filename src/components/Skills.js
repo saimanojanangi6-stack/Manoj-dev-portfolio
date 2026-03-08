@@ -1,14 +1,16 @@
 "use client";
-import { motion } from "framer-motion";
+import { useRef, useEffect } from "react";
 import { 
-  SiFigma, 
-  SiFramer, 
-  SiReact, 
-  SiNextdotjs, 
-  SiTailwindcss,
-  SiTypescript,
-  SiPrisma,
-  SiNodedotjs
+  motion, 
+  useMotionValue, 
+  useSpring, 
+  useMotionTemplate, 
+  animate, 
+  useInView 
+} from "framer-motion";
+import { 
+  SiFigma, SiFramer, SiReact, SiNextdotjs, 
+  SiTailwindcss, SiTypescript, SiPrisma, SiNodedotjs
 } from "react-icons/si";
 
 const skills = [
@@ -17,9 +19,11 @@ const skills = [
     items: [
       { name: "Figma", level: 95, icon: <SiFigma /> },
       { name: "Prototyping", level: 90, icon: <SiFramer /> },
-      { name: "User Experience", level: 85, icon: <SiFigma /> } 
+      { name: "UX Research", level: 85, icon: <SiFigma /> } 
     ],
-    highlight: true 
+    highlight: true,
+    glow: "shadow-indigo-500/20",
+    border: "border-indigo-500/50"
   },
   { 
     category: "Frontend", 
@@ -27,134 +31,250 @@ const skills = [
       { name: "React", level: 90, icon: <SiReact /> },
       { name: "Next.js", level: 88, icon: <SiNextdotjs /> },
       { name: "Tailwind", level: 95, icon: <SiTailwindcss /> }
-    ] 
+    ],
+    highlight: false,
+    glow: "shadow-cyan-500/10",
+    border: "border-slate-800"
   },
   { 
-    category: "Full Stack & Tools", 
+    category: "Full Stack", 
     items: [
       { name: "TypeScript", level: 85, icon: <SiTypescript /> },
       { name: "Prisma", level: 80, icon: <SiPrisma /> }, 
       { name: "Node.js", level: 80, icon: <SiNodedotjs /> }
-    ] 
+    ],
+    highlight: false,
+    glow: "shadow-emerald-500/10",
+    border: "border-slate-800"
   },
 ];
 
-// Parent container variants for staggered children
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.15, delayChildren: 0.3 }
-  }
+// --- 1. Dynamic Animated Counter ---
+function AnimatedCounter({ from, to, delay }) {
+  const nodeRef = useRef(null);
+  const inView = useInView(nodeRef, { once: true, margin: "-50px" });
+
+  useEffect(() => {
+    if (inView) {
+      const controls = animate(from, to, {
+        duration: 2,
+        delay: delay,
+        ease: [0.16, 1, 0.3, 1], // Buttery ease-out
+        onUpdate(value) {
+          if (nodeRef.current) {
+            nodeRef.current.textContent = Math.round(value) + "%";
+          }
+        },
+      });
+      return () => controls.stop();
+    }
+  }, [from, to, delay, inView]);
+
+  return <span ref={nodeRef} className="font-mono text-[10px] text-slate-500 tracking-wider" />;
+}
+
+// --- 2. Advanced HUD Dial Component ---
+const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const delay = 0.3 + (index * 0.15);
+
+  return (
+    <div className="flex flex-col items-center gap-4 group/item relative z-20" style={{ transform: "translateZ(40px)" }}>
+      <div className="relative w-24 h-24 flex items-center justify-center">
+        
+        {/* Outer Rotating Dashed Ring */}
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className={`absolute inset-0 rounded-full border border-dashed ${isHighlighted ? "border-indigo-500/30" : "border-white/10"}`}
+        />
+
+        {/* SVG Progress Engine */}
+        <svg className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] rotate-[-90deg] drop-shadow-2xl">
+          {/* Faint Background Track */}
+          <circle cx="50%" cy="50%" r={radius} stroke="currentColor" strokeWidth="2" fill="transparent" className="text-white/5" />
+          
+          {/* Animated Neon Fill */}
+          <motion.circle
+            cx="50%" cy="50%" r={radius}
+            stroke={`url(#gradient-${name.replace(/\s+/g, '')})`}
+            strokeWidth="3"
+            strokeLinecap="round"
+            fill="transparent"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            whileInView={{ strokeDashoffset: circumference - (level / 100) * circumference }}
+            transition={{ duration: 2, delay: delay, ease: [0.16, 1, 0.3, 1] }}
+            viewport={{ once: true }}
+            style={{ filter: isHighlighted ? "drop-shadow(0 0 4px rgba(99,102,241,0.5))" : "none" }}
+          />
+          <defs>
+            <linearGradient id={`gradient-${name.replace(/\s+/g, '')}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={isHighlighted ? "#818cf8" : "#06b6d4"} />
+              <stop offset="100%" stopColor={isHighlighted ? "#2dd4bf" : "#3b82f6"} />
+            </linearGradient>
+          </defs>
+        </svg>
+        
+        {/* Floating Center Icon */}
+        <motion.div 
+          animate={{ y: [0, -4, 0] }} // Continuous breathing
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.2 }}
+          whileHover={{ rotate: 360, scale: 1.2, y: 0, transition: { duration: 0.5 } }}
+          className={`text-2xl z-10 ${isHighlighted ? "text-indigo-400" : "text-slate-400 group-hover/item:text-cyan-400"} transition-colors`}
+        >
+          {icon}
+        </motion.div>
+      </div>
+      
+      {/* Label & Dynamic Counter */}
+      <div className="text-center">
+        <div className="text-sm font-bold text-slate-200 group-hover/item:text-white transition-colors tracking-wide">{name}</div>
+        <AnimatedCounter from={0} to={level} delay={delay} />
+      </div>
+    </div>
+  );
 };
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 30, rotateX: 15 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    rotateX: 0,
-    transition: { duration: 0.8, ease: "easeOut" } 
-  }
-};
+// --- 3. 3D Spotlight Card ---
+function SkillCard({ skill, index }) {
+  const cardRef = useRef(null);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const tiltX = useSpring(useMotionValue(0), { damping: 20, stiffness: 100 });
+  const tiltY = useSpring(useMotionValue(0), { damping: 20, stiffness: 100 });
+
+  const handleMouseMove = (e) => {
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    mouseX.set(x);
+    mouseY.set(y);
+    tiltX.set(((y / rect.height) - 0.5) * -10);
+    tiltY.set(((x / rect.width) - 0.5) * 10);
+  };
+
+  const handleTouchMove = (e) => {
+    const rect = cardRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    mouseX.set(x);
+    mouseY.set(y);
+    tiltX.set(((y / rect.height) - 0.5) * -10);
+    tiltY.set(((x / rect.width) - 0.5) * 10);
+  };
+
+  const handleReset = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleReset}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleReset}
+      initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 1, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
+      viewport={{ once: true, margin: "-50px" }}
+      style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
+      className={`relative rounded-[2.5rem] p-[1px] group perspective-1000 ${skill.highlight ? "z-20 lg:scale-105" : "z-10"}`}
+    >
+      {/* Magnetic Spotlight Border */}
+      <motion.div
+        className="absolute inset-0 rounded-[2.5rem] z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+        style={{
+          background: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, ${skill.highlight ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.3)"}, transparent 40%)`,
+        }}
+      />
+
+      {/* Main Glass Card */}
+      <div className={`relative h-full w-full bg-[#0a0a0a]/90 backdrop-blur-2xl rounded-[2.5rem] p-8 md:p-10 overflow-hidden z-10 border-t-2 ${skill.border} shadow-2xl ${skill.glow}`}>
+        
+        {/* Inner Hover Ambient Glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
+        {/* Header floating effect */}
+        <div className="flex justify-between items-center mb-12" style={{ transform: "translateZ(20px)" }}>
+          <h3 className={`text-2xl font-black tracking-tight ${skill.highlight ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-slate-300"}`}>
+            {skill.category}
+          </h3>
+          {skill.highlight && (
+            <motion.span 
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-500/30"
+            >
+              Specialized
+            </motion.span>
+          )}
+        </div>
+
+        {/* Render Circular HUD Items */}
+        <div className="flex justify-between items-center gap-2">
+          {skill.items.map((item, i) => (
+            <CircularHUD 
+              key={i} index={i} name={item.name} level={item.level} icon={item.icon} isHighlighted={skill.highlight} 
+            />
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function Skills() {
   return (
-    <section id="skills" className="py-12 md:py-24 container mx-auto px-6 overflow-hidden">
-      <div className="text-center mb-16">
-        <motion.h2 
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
-          className="text-4xl md:text-5xl font-bold mb-4"
-        >
-          Technical <span className="text-gradient">Expertise</span>
-        </motion.h2>
-        <p className="text-slate-400 max-w-xl mx-auto text-sm md:text-base">
-          Bridging the gap between high-fidelity design and scalable full-stack code.
-        </p>
-      </div>
+    <section id="skills" className="py-24 md:py-40 bg-[#0a0a0a] relative overflow-hidden">
+      
+      {/* Background Noise & Decor */}
+      <div className="pointer-events-none absolute inset-0 z-50 opacity-[0.03] mix-blend-overlay"
+        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
+      />
+      
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-900/10 blur-[150px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/3" />
 
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        className="grid lg:grid-cols-3 gap-8 items-start perspective-1000"
-      >
-        {skills.map((skill, index) => (
+      <div className="container mx-auto px-6 relative z-10">
+        
+        {/* Editorial Section Header */}
+        <div className="text-center mb-24">
           <motion.div 
-            key={index}
-            variants={cardVariants}
-            whileHover={{ 
-              y: -10, 
-              scale: 1.02,
-              boxShadow: "0 20px 40px rgba(0,0,0,0.4)" 
-            }}
-            className={`glass-card p-8 rounded-[2.5rem] border-t-2 transition-all duration-500 relative group ${
-              skill.highlight 
-                ? "border-t-indigo-500 shadow-2xl shadow-indigo-500/10 lg:scale-105 z-10" 
-                : "border-t-slate-800"
-            }`}
+            initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-4 text-[10px] font-mono text-indigo-400 uppercase tracking-[0.3em] mb-6"
           >
-            {/* Background Glow on Hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]" />
-
-            <div className="flex items-center justify-between mb-8 relative z-10">
-              <h3 className={`text-2xl font-bold ${skill.highlight ? "text-white" : "text-slate-300"}`}>
-                {skill.category}
-              </h3>
-              {skill.highlight && (
-                <motion.span 
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-indigo-500/20"
-                >
-                  Specialized
-                </motion.span>
-              )}
-            </div>
-
-            <div className="space-y-6 relative z-10">
-              {skill.items.map((item, i) => (
-                <div key={i} className="group/item">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-3">
-                      <motion.span 
-                        whileHover={{ rotate: 360, scale: 1.2 }}
-                        className="text-xl text-slate-400 group-hover/item:text-cyan-400 transition-colors"
-                      >
-                        {item.icon}
-                      </motion.span>
-                      <span className="text-sm font-medium text-slate-200">{item.name}</span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-500">{item.level}%</span>
-                  </div>
-                  
-                  {/* Progress Bar with Staggered Fill */}
-                  <div className="h-1.5 w-full bg-slate-800/50 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${item.level}%` }}
-                      transition={{ 
-                        duration: 1.5, 
-                        delay: 0.5 + (i * 0.1),
-                        ease: [0.34, 1.56, 0.64, 1] // Bouncy easing
-                      }}
-                      className={`h-full rounded-full ${
-                        skill.highlight 
-                          ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400" 
-                          : "bg-slate-600"
-                      }`}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <span>[03]</span>
+            <div className="w-10 h-[1px] bg-indigo-400" />
+            <span>The Arsenal</span>
           </motion.div>
-        ))}
-      </motion.div>
+
+          <motion.h2 
+            initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
+            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-white"
+          >
+            Technical <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 italic font-light">Ecosystem.</span>
+          </motion.h2>
+        </div>
+
+        {/* 3D Grid Layout */}
+        <div className="grid lg:grid-cols-3 gap-8 md:gap-10">
+          {skills.map((skill, index) => (
+            <SkillCard key={index} skill={skill} index={index} />
+          ))}
+        </div>
+        
+      </div>
     </section>
   );
 }
