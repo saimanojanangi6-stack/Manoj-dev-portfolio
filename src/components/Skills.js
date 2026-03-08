@@ -59,7 +59,7 @@ function AnimatedCounter({ from, to, delay }) {
       const controls = animate(from, to, {
         duration: 2,
         delay: delay,
-        ease: [0.16, 1, 0.3, 1], // Buttery ease-out
+        ease: [0.16, 1, 0.3, 1], 
         onUpdate(value) {
           if (nodeRef.current) {
             nodeRef.current.textContent = Math.round(value) + "%";
@@ -70,18 +70,20 @@ function AnimatedCounter({ from, to, delay }) {
     }
   }, [from, to, delay, inView]);
 
-  return <span ref={nodeRef} className="font-mono text-[10px] text-slate-500 tracking-wider" />;
+  return <span ref={nodeRef} className="font-mono text-[10px] md:text-xs text-slate-500 tracking-wider" />;
 }
 
-// --- 2. Advanced HUD Dial Component ---
+// --- 2. Responsive HUD Dial Component ---
 const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
-  const radius = 34;
-  const circumference = 2 * Math.PI * radius;
+  // Switched from hardcoded pixels to a responsive viewBox
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius; // Approx 251.2
   const delay = 0.3 + (index * 0.15);
 
   return (
-    <div className="flex flex-col items-center gap-4 group/item relative z-20" style={{ transform: "translateZ(40px)" }}>
-      <div className="relative w-24 h-24 flex items-center justify-center">
+    <div className="flex flex-col items-center gap-3 md:gap-4 group/item relative z-20 w-full" style={{ transform: "translateZ(40px)" }}>
+      {/* Container scales based on screen size: w-16 on mobile, up to w-24 on desktop */}
+      <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex items-center justify-center">
         
         {/* Outer Rotating Dashed Ring */}
         <motion.div 
@@ -90,16 +92,14 @@ const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
           className={`absolute inset-0 rounded-full border border-dashed ${isHighlighted ? "border-indigo-500/30" : "border-white/10"}`}
         />
 
-        {/* SVG Progress Engine */}
-        <svg className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] rotate-[-90deg] drop-shadow-2xl">
-          {/* Faint Background Track */}
-          <circle cx="50%" cy="50%" r={radius} stroke="currentColor" strokeWidth="2" fill="transparent" className="text-white/5" />
+        {/* Scalable SVG Engine */}
+        <svg viewBox="0 0 100 100" className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] rotate-[-90deg] drop-shadow-2xl">
+          <circle cx="50" cy="50" r={radius} stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
           
-          {/* Animated Neon Fill */}
           <motion.circle
-            cx="50%" cy="50%" r={radius}
+            cx="50" cy="50" r={radius}
             stroke={`url(#gradient-${name.replace(/\s+/g, '')})`}
-            strokeWidth="3"
+            strokeWidth="6"
             strokeLinecap="round"
             fill="transparent"
             strokeDasharray={circumference}
@@ -117,20 +117,22 @@ const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
           </defs>
         </svg>
         
-        {/* Floating Center Icon */}
+        {/* Responsive Icon */}
         <motion.div 
-          animate={{ y: [0, -4, 0] }} // Continuous breathing
+          animate={{ y: [0, -4, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.2 }}
           whileHover={{ rotate: 360, scale: 1.2, y: 0, transition: { duration: 0.5 } }}
-          className={`text-2xl z-10 ${isHighlighted ? "text-indigo-400" : "text-slate-400 group-hover/item:text-cyan-400"} transition-colors`}
+          className={`text-lg sm:text-xl md:text-2xl z-10 ${isHighlighted ? "text-indigo-400" : "text-slate-400 group-hover/item:text-cyan-400"} transition-colors`}
         >
           {icon}
         </motion.div>
       </div>
       
       {/* Label & Dynamic Counter */}
-      <div className="text-center">
-        <div className="text-sm font-bold text-slate-200 group-hover/item:text-white transition-colors tracking-wide">{name}</div>
+      <div className="text-center w-full">
+        <div className="text-[10px] sm:text-xs md:text-sm font-bold text-slate-200 group-hover/item:text-white transition-colors tracking-wide truncate px-1">
+          {name}
+        </div>
         <AnimatedCounter from={0} to={level} delay={delay} />
       </div>
     </div>
@@ -157,14 +159,15 @@ function SkillCard({ skill, index }) {
   };
 
   const handleTouchMove = (e) => {
+    // Reduced tilt math for touch devices to avoid breaking mobile scrolling
     const rect = cardRef.current.getBoundingClientRect();
     const touch = e.touches[0];
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
     mouseX.set(x);
     mouseY.set(y);
-    tiltX.set(((y / rect.height) - 0.5) * -10);
-    tiltY.set(((x / rect.width) - 0.5) * 10);
+    tiltX.set(((y / rect.height) - 0.5) * -5);
+    tiltY.set(((x / rect.width) - 0.5) * 5);
   };
 
   const handleReset = () => {
@@ -184,7 +187,8 @@ function SkillCard({ skill, index }) {
       transition={{ duration: 1, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
       viewport={{ once: true, margin: "-50px" }}
       style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
-      className={`relative rounded-[2.5rem] p-[1px] group perspective-1000 ${skill.highlight ? "z-20 lg:scale-105" : "z-10"}`}
+      /* ADDED touch-pan-y so vertical scrolling isn't blocked on mobile */
+      className={`relative w-full rounded-[2.5rem] p-[1px] group perspective-1000 touch-pan-y ${skill.highlight ? "z-20 lg:scale-105" : "z-10"}`}
     >
       {/* Magnetic Spotlight Border */}
       <motion.div
@@ -194,30 +198,30 @@ function SkillCard({ skill, index }) {
         }}
       />
 
-      {/* Main Glass Card */}
-      <div className={`relative h-full w-full bg-[#0a0a0a]/90 backdrop-blur-2xl rounded-[2.5rem] p-8 md:p-10 overflow-hidden z-10 border-t-2 ${skill.border} shadow-2xl ${skill.glow}`}>
+      {/* Main Glass Card (Reduced padding for mobile) */}
+      <div className={`relative h-full w-full bg-[#0a0a0a]/90 backdrop-blur-2xl rounded-[2.5rem] p-6 md:p-10 z-10 border-t-2 ${skill.border} shadow-2xl ${skill.glow}`}>
         
         {/* Inner Hover Ambient Glow */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[2.5rem]" />
 
         {/* Header floating effect */}
-        <div className="flex justify-between items-center mb-12" style={{ transform: "translateZ(20px)" }}>
-          <h3 className={`text-2xl font-black tracking-tight ${skill.highlight ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-slate-300"}`}>
+        <div className="flex justify-between items-center mb-10 md:mb-12" style={{ transform: "translateZ(20px)" }}>
+          <h3 className={`text-xl md:text-2xl font-black tracking-tight ${skill.highlight ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-slate-300"}`}>
             {skill.category}
           </h3>
           {skill.highlight && (
             <motion.span 
               animate={{ opacity: [0.5, 1, 0.5] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-500/30"
+              className="px-2 py-1 md:px-3 md:py-1 bg-indigo-500/10 text-indigo-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-500/30"
             >
               Specialized
             </motion.span>
           )}
         </div>
 
-        {/* Render Circular HUD Items */}
-        <div className="flex justify-between items-center gap-2">
+        {/* CHANGED: Replaced flex with a grid so items don't squash horizontally on small screens */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 place-items-center w-full">
           {skill.items.map((item, i) => (
             <CircularHUD 
               key={i} index={i} name={item.name} level={item.level} icon={item.icon} isHighlighted={skill.highlight} 
@@ -243,7 +247,7 @@ export default function Skills() {
       <div className="container mx-auto px-6 relative z-10">
         
         {/* Editorial Section Header */}
-        <div className="text-center mb-24">
+        <div className="text-center mb-16 md:mb-24">
           <motion.div 
             initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
             whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}

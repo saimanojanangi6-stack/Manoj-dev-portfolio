@@ -1,152 +1,137 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion, animate } from "framer-motion";
+import { motion, animate, useMotionValue, useSpring } from "framer-motion";
 
 export default function SplashScreen({ finishLoading }) {
   const counterRef = useRef(null);
-  const [decodedText, setDecodedText] = useState("");
-  
-  const TARGET_TEXT = "MANOJ DEV.";
-  const CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+  const [isHovering, setIsHovering] = useState(false);
+
+  // --- 1. GPU-Accelerated Mouse Tracking ---
+  const mouseX = useMotionValue(-1000); // Start off-screen
+  const mouseY = useMotionValue(-1000);
+
+  // Buttery smooth spring physics for the orb
+  const springConfig = { damping: 25, stiffness: 200, mass: 0.5 };
+  const smoothX = useSpring(mouseX, springConfig);
+  const smoothY = useSpring(mouseY, springConfig);
 
   useEffect(() => {
-    // 1. The Hardware-Accelerated Loading Counter (0 to 100)
-    const duration = 3.5; // Total loading time
-    
+    // Center the orb initially
+    mouseX.set(window.innerWidth / 2);
+    mouseY.set(window.innerHeight / 2);
+
+    const handleMouseMove = (e) => {
+      mouseX.set(e.clientX);
+      mouseY.set(e.clientY);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [mouseX, mouseY]);
+
+  useEffect(() => {
+    // --- 2. The 120fps Hardware Counter ---
     const controls = animate(0, 100, {
-      duration: duration,
-      ease: [0.76, 0, 0.24, 1], // Aggressive cinematic ease
+      duration: 3.5, // 3.5 seconds of cinematic buildup
+      ease: [0.76, 0, 0.24, 1], // Aggressive snap easing
       onUpdate: (value) => {
         if (counterRef.current) {
-          counterRef.current.textContent = Math.round(value) + "%";
+          counterRef.current.textContent = Math.round(value);
         }
       },
       onComplete: () => {
-        // Tiny pause for impact, then trigger the split exit
-        setTimeout(() => finishLoading(), 400);
+        // Pause at 100%, then trigger the "Big Bang"
+        setTimeout(() => finishLoading(), 600);
       }
     });
 
-    // 2. The Text Decoder Effect
-    let iterations = 0;
-    const interval = setInterval(() => {
-      setDecodedText(
-        TARGET_TEXT.split("")
-          .map((letter, index) => {
-            if (index < iterations) return TARGET_TEXT[index];
-            return CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
-          })
-          .join("")
-      );
-      
-      // Speed of decryption (scales with the 3.5s loading time)
-      if (iterations >= TARGET_TEXT.length) clearInterval(interval);
-      iterations += 1 / 6; 
-    }, 30);
-
-    return () => {
-      controls.stop();
-      clearInterval(interval);
-    };
+    return () => controls.stop();
   }, [finishLoading]);
 
-  // --- Elite Split-Screen Exit Variants ---
-  const slideUp = {
-    exit: { 
-      y: "-100vh", 
-      transition: { duration: 1.2, ease: [0.76, 0, 0.24, 1], delay: 0.2 } 
-    }
-  };
-  
-  const slideDown = {
-    exit: { 
-      y: "100vh", 
-      transition: { duration: 1.2, ease: [0.76, 0, 0.24, 1], delay: 0.2 } 
-    }
-  };
-
-  const contentFade = {
-    exit: { 
-      opacity: 0, 
-      scale: 1.1, 
-      filter: "blur(10px)", 
-      transition: { duration: 0.6, ease: "easeOut" } 
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-[100] pointer-events-none flex flex-col">
+    <motion.div 
+      key="splash"
+      /* The Background fades out after the orb explodes */
+      exit={{ 
+        opacity: 0,
+        transition: { duration: 0.8, delay: 0.6, ease: "easeInOut" } 
+      }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0a0a0a] overflow-hidden"
+    >
       
-      {/* --- The Split Doors --- */}
-      {/* Top Door */}
-      <motion.div 
-        variants={slideUp} 
-        exit="exit" 
-        className="absolute top-0 left-0 w-full h-1/2 bg-[#0a0a0a] border-b border-white/5 origin-top z-10"
-      />
-      {/* Bottom Door */}
-      <motion.div 
-        variants={slideDown} 
-        exit="exit" 
-        className="absolute bottom-0 left-0 w-full h-1/2 bg-[#0a0a0a] border-t border-white/5 origin-bottom z-10"
-      />
+      {/* --- 3. Infinite Kinetic Background Typography --- */}
+      <div className="absolute inset-0 flex flex-col justify-center gap-4 md:gap-10 opacity-20 pointer-events-none select-none overflow-hidden">
+        <motion.h1 
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="text-[15vw] md:text-[12vw] font-black text-white whitespace-nowrap leading-none tracking-tighter"
+        >
+          UI/UX DESIGNER • UI/UX DESIGNER • UI/UX DESIGNER •
+        </motion.h1>
+        
+        <motion.h1 
+          animate={{ x: ["-50%", "0%"] }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="text-[15vw] md:text-[12vw] font-black text-transparent stroke-text whitespace-nowrap leading-none tracking-tighter"
+        >
+          FULL STACK ENGINEER • FULL STACK ENGINEER •
+        </motion.h1>
+        
+        <motion.h1 
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+          className="text-[15vw] md:text-[12vw] font-black text-white whitespace-nowrap leading-none tracking-tighter"
+        >
+          MANOJ DEV • MANOJ DEV • MANOJ DEV • MANOJ DEV •
+        </motion.h1>
+      </div>
 
-      {/* --- The Content (Sits above doors, fades out right before split) --- */}
-      <motion.div 
-        variants={contentFade}
-        exit="exit"
-        className="absolute inset-0 z-20 flex flex-col items-center justify-center"
+      {/* --- 4. The Singularity Lens (The Inversion Orb) --- */}
+      <motion.div
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        /* THE BIG BANG EXIT: The orb scales to 50x its size, blinding the screen */
+        exit={{ 
+          scale: 60, 
+          opacity: 0,
+          transition: { duration: 1.2, ease: [0.76, 0, 0.24, 1] } 
+        }}
+        style={{ 
+          x: smoothX, 
+          y: smoothY,
+          translateX: "-50%",
+          translateY: "-50%"
+        }}
+        className="absolute top-0 left-0 w-40 h-40 md:w-64 md:h-64 bg-white rounded-full mix-blend-difference flex items-center justify-center cursor-none z-50 pointer-events-auto"
       >
-        {/* Film Grain Noise */}
-        <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay pointer-events-none"
-          style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
-        />
-
-        {/* The Decoded Brand Name */}
-        <div className="overflow-hidden mb-8">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-            className="text-5xl md:text-7xl lg:text-9xl font-black text-white tracking-tighter font-mono"
+        {/* Loading Counter Inside the Orb */}
+        <div className="flex items-start mix-blend-difference text-white">
+          <span 
+            ref={counterRef} 
+            className="text-5xl md:text-7xl font-black tracking-tighter"
           >
-            {decodedText}
-          </motion.h1>
-        </div>
-
-        {/* Center Progress Box */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="text-[10px] md:text-xs font-mono text-cyan-400 uppercase tracking-[0.5em]">
-            System Initialization
-          </div>
-          
-          <div className="relative flex items-center justify-center">
-            {/* Massive Hollow Counter */}
-            <span 
-              ref={counterRef} 
-              className="text-[15vw] md:text-[8rem] font-black leading-none text-transparent tracking-tighter"
-              style={{ WebkitTextStroke: "1px rgba(255,255,255,0.15)" }}
-            >
-              0%
-            </span>
-            
-            {/* Overlapping Solid Counter */}
-            <span className="absolute text-2xl md:text-4xl font-black text-white mix-blend-difference">
-              Loading
-            </span>
-          </div>
-        </div>
-
-        {/* Viewport Progress Stroke (Traces the screen edges) */}
-        <div className="absolute inset-4 md:inset-8 border border-white/10 pointer-events-none overflow-hidden">
-          <motion.div 
-            initial={{ height: "0%" }}
-            animate={{ height: "100%" }}
-            transition={{ duration: 3.5, ease: [0.76, 0, 0.24, 1] }}
-            className="absolute top-0 left-0 w-[2px] bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
-          />
+            0
+          </span>
+          <span className="text-xl md:text-2xl font-bold mt-1 ml-1">%</span>
         </div>
       </motion.div>
-    </div>
+
+      {/* --- 5. Terminal Footer --- */}
+      <motion.div 
+        exit={{ opacity: 0, y: 20, transition: { duration: 0.4 } }}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+      >
+        <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-[0.5em] animate-pulse">
+          Move your mouse
+        </div>
+        <div className="w-[1px] h-12 bg-gradient-to-b from-cyan-400 to-transparent" />
+      </motion.div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        .stroke-text {
+          -webkit-text-stroke: 2px rgba(255,255,255,1);
+        }
+      `}} />
+    </motion.div>
   );
 }
