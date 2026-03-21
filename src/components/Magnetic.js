@@ -1,28 +1,34 @@
 "use client";
-import { useRef } from "react";
-import { motion, useSpring } from "framer-motion";
+import { useRef, useState } from "react";
+import { motion, useSpring, useTransform } from "framer-motion";
 
-export default function Magnetic({ children, strength = 0.35 }) {
+export default function Magnetic({ children, strength = 0.5 }) {
   const ref = useRef(null);
 
-  // 1. Bypass React State: We use Springs directly for GPU-accelerated 120fps physics
-  const springConfig = { damping: 15, stiffness: 150, mass: 0.1 };
+  // 1. High-Precision Spring Physics
+  // mass: 0.1 for instant reaction, stiffness: 200 for snap
+  const springConfig = { damping: 20, stiffness: 200, mass: 0.1 };
   const x = useSpring(0, springConfig);
   const y = useSpring(0, springConfig);
 
+  // 2. Geometric Elasticity (The "WOW" factor)
+  // These map the movement to slight rotation and scale for a "stretching" effect
+  const rotateX = useTransform(y, [-100, 100], [10, -10]);
+  const rotateY = useTransform(x, [-100, 100], [-10, 10]);
+
   const handleMouseMove = (e) => {
     if (!ref.current) return;
-    
+
     const { clientX, clientY } = e;
     const { height, width, left, top } = ref.current.getBoundingClientRect();
-    
-    // Calculate distance from center
-    const middleX = clientX - (left + width / 2);
-    const middleY = clientY - (top + height / 2);
-    
-    // Inject directly into the spring (No React re-renders!)
-    x.set(middleX * strength);
-    y.set(middleY * strength);
+
+    // Calculate center point
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+
+    // Direct Physics Injection
+    x.set((clientX - centerX) * strength);
+    y.set((clientY - centerY) * strength);
   };
 
   const reset = () => {
@@ -35,10 +41,23 @@ export default function Magnetic({ children, strength = 0.35 }) {
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseLeave={reset}
-      style={{ x, y }} // Bind springs directly to the style
-      className="relative flex items-center justify-center cursor-none"
+      style={{ 
+        x, 
+        y, 
+        rotateX, 
+        rotateY, 
+        transformStyle: "preserve-3d" 
+      }}
+      className="relative flex items-center justify-center transition-shadow duration-500"
     >
-      {children}
+      {/* Internal wrapper to ensure child content stays sharp while parent distorts */}
+      <motion.div 
+        style={{ transformStyle: "preserve-3d" }}
+        whileHover={{ scale: 1.1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+      >
+        {children}
+      </motion.div>
     </motion.div>
   );
 }

@@ -1,7 +1,13 @@
 "use client";
-import { useRef, useState } from "react";
-import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
-import { FaGithub, FaExternalLinkAlt } from "react-icons/fa";
+import { useRef, useState, useMemo } from "react";
+import { 
+  motion, 
+  useMotionValue, 
+  useSpring, 
+  useTransform, 
+  useScroll,
+  useMotionTemplate 
+} from "framer-motion";
 import { FiArrowUpRight } from "react-icons/fi";
 import Image from "next/image";
 
@@ -9,253 +15,213 @@ const projects = [
   {
     title: "Aqua Pure",
     desc: "A responsive, modern frontend web application focusing on clean UI, fast performance, and a seamless user experience.",
-    image: "/aquapure-screenshot.jpg", // Ensure this exists in public/
+    image: "/aquapure-screenshot.jpg",
     tags: ["Next.js", "TailwindCSS", "UI/UX"],
     link: "https://aqua-tau-two.vercel.app/",
-    github: "#"
+    color: "#22d3ee"
   },
-   {
-    title: "civil-construction-booking",
-    desc: "Developed a full-stack website featuring responsive UI, secure authentication, and efficient database management for seamless user interaction.",
-    image: "/Screenshot 2026-03-08 214921.png", // Ensure this exists in public/
-    tags: ["Next.js", "TailwindCSS","Full Stack Development", "Emailjs"],
+  {
+    title: "Doseas Admin",
+    desc: "Medical management suite featuring secure authentication, patient tracking, and high-fidelity dashboard interfaces.",
+    image: "/Screenshot 2026-03-08 214921.png",
+    tags: ["Next.js", "Prisma", "Medical UI"],
     link: "https://civil-construction-booking.vercel.app//",
-    github: "#"
+    color: "#818cf8"
   },
   {
     title: "Modern School",
     desc: "A high-fidelity School Management login interface providing secure and user-friendly access for students and teachers.",
-    image: "/Screenshot 2026-03-05 150446.png", // Ensure this exists in public/
+    image: "/Screenshot 2026-03-05 150446.png",
     tags: ["Figma", "Prototyping", "Auth UI"],
     link: "https://serif-gecko-87752902.figma.site",
-    github: "#"
+    color: "#f472b6"
   }
 ];
 
-// --- Ultimate 3D Project Card ---
 function ProjectCard({ project, index }) {
   const cardRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  // 1. Mouse coordinates for 3D Tilt
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-  
-  // 2. Mouse coordinates for the "Follower" Button
-  const followerX = useSpring(useMotionValue(0), { damping: 20, stiffness: 150 });
-  const followerY = useSpring(useMotionValue(0), { damping: 20, stiffness: 150 });
+  // --- Scroll Parallax Logic ---
+  const { scrollYProgress } = useScroll({
+    target: cardRef,
+    offset: ["start end", "end start"]
+  });
 
-  // Springs for 3D physics
-  const springConfig = { damping: 25, stiffness: 120 };
-  const smoothX = useSpring(mouseX, springConfig);
-  const smoothY = useSpring(mouseY, springConfig);
+  const yParallax = useTransform(scrollYProgress, [0, 1], [-100, 100]);
+  const imageScale = useTransform(scrollYProgress, [0, 0.5, 1], [1.3, 1, 1.3]);
 
-  // Deep Parallax Transforms
-  const rotateX = useTransform(smoothY, [0, 1], ["8deg", "-8deg"]);
-  const rotateY = useTransform(smoothX, [0, 1], ["-8deg", "8deg"]);
-  const imageScale = useTransform(smoothX, [0, 1], [1.05, 1.15]); // Image breathes slightly
-  
-  // Lighting / Glare
-  const glareX = useTransform(smoothX, [0, 1], ["-100%", "100%"]);
-  const glareY = useTransform(smoothY, [0, 1], ["-100%", "100%"]);
+  // --- Interaction Physics ---
+  const mX = useMotionValue(0.5);
+  const mY = useMotionValue(0.5);
+  const springX = useSpring(mX, { damping: 30, stiffness: 150 });
+  const springY = useSpring(mY, { damping: 30, stiffness: 150 });
+
+  const rotateX = useTransform(springY, [0, 1], ["12deg", "-12deg"]);
+  const rotateY = useTransform(springX, [0, 1], ["-12deg", "12deg"]);
 
   const handleMouseMove = (e) => {
     const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Normalized for tilt (0 to 1)
-    mouseX.set(x / rect.width);
-    mouseY.set(y / rect.height);
-
-    // Exact pixels for follower button
-    followerX.set(x);
-    followerY.set(y);
-  };
-
-  const handleTouchMove = (e) => {
-    const rect = cardRef.current.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    
-    mouseX.set(x / rect.width);
-    mouseY.set(y / rect.height);
-  };
-
-  const handleMouseEnter = () => setIsHovered(true);
-  
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    mouseX.set(0.5);
-    mouseY.set(0.5);
+    mX.set((e.clientX - rect.left) / rect.width);
+    mY.set((e.clientY - rect.top) / rect.height);
   };
 
   return (
     <motion.div
       ref={cardRef}
       onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleMouseLeave}
-      initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      transition={{ duration: 1, delay: index * 0.2, ease: [0.16, 1, 0.3, 1] }}
-      viewport={{ once: true, margin: "-50px" }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        mX.set(0.5);
+        mY.set(0.5);
+      }}
+      // entrance animation with a "Glitch" feel
+      initial={{ opacity: 0, scale: 0.9, y: 100 }}
+      whileInView={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+      viewport={{ once: true, margin: "-100px" }}
       style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-      // OFFSET GRID: Pushes every even item down on desktop for an editorial layout
-      className={`relative w-full aspect-[4/5] md:aspect-auto md:h-[600px] rounded-[2rem] group cursor-none ${index % 2 !== 0 ? "md:mt-32" : ""}`}
+      className={`relative w-full aspect-[4/5] md:h-[750px] rounded-[3.5rem] group cursor-none mb-24 md:mb-0 ${index % 2 !== 0 ? "md:mt-52" : ""}`}
     >
-      {/* --- Floating "VIEW" Follower Button --- */}
+      {/* 1. MAGNETIC CURSOR OVERLAY */}
       <motion.div 
-        style={{ x: followerX, y: followerY, translateX: "-50%", translateY: "-50%", translateZ: "60px" }}
-        animate={{ scale: isHovered ? 1 : 0, opacity: isHovered ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
-        className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 text-[#0a0a0a] rounded-full flex items-center justify-center font-black text-sm tracking-widest pointer-events-none z-50 shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+        animate={{ 
+            scale: isHovered ? 1 : 0, 
+            opacity: isHovered ? 1 : 0,
+            rotate: isHovered ? 0 : -45 
+        }}
+        className="fixed top-0 left-0 w-32 h-32 bg-white rounded-full pointer-events-none z-[100] flex flex-col items-center justify-center mix-blend-difference"
+        style={{ x: useSpring(useMotionValue(0), {stiffness: 1000}), y: useSpring(useMotionValue(0), {stiffness: 1000}), translateX: "-50%", translateY: "-50%" }}
       >
-        VIEW <FiArrowUpRight className="ml-1 text-lg" />
+        <span className="text-black font-black text-[10px] tracking-[0.3em] uppercase">View</span>
+        <FiArrowUpRight className="text-black text-2xl" />
       </motion.div>
 
-      <a href={project.link} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-40" aria-label={`View ${project.title}`} />
-
-      {/* --- Main Card Body --- */}
-      <div className="absolute inset-0 rounded-[2rem] overflow-hidden bg-[#111] border border-white/5">
+      {/* 2. MAIN VISUAL WRAPPER */}
+      <div className="absolute inset-0 rounded-[3.5rem] overflow-hidden bg-[#080808] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
         
-        {/* Parallax Image Background */}
+        {/* Parallax Image Content */}
         <motion.div 
-          style={{ scale: imageScale, translateZ: "-30px" }} // Pushed back into the screen
-          className="absolute inset-0 w-full h-full"
+          style={{ scale: imageScale, y: yParallax }} 
+          className="absolute inset-0 w-full h-[120%] -top-[10%]"
         >
           <Image 
             src={project.image} 
             alt={project.title} 
             fill 
-            className="object-cover grayscale group-hover:grayscale-0 transition-all duration-1000" 
+            className="object-cover grayscale group-hover:grayscale-0 contrast-[1.1] transition-all duration-1000" 
           />
+          {/* Dynamic Color Flash */}
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-700" style={{ backgroundColor: project.color }} />
         </motion.div>
 
-        {/* Dynamic Dark Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent opacity-90 group-hover:opacity-80 transition-opacity duration-500" />
+        {/* Cinematic Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
 
-        {/* Dynamic Glare Effect */}
-        <motion.div 
-          style={{ left: glareX, top: glareY }}
-          className="absolute w-[200%] h-[200%] bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-1/2 -translate-y-1/2 rotate-45 pointer-events-none mix-blend-overlay"
-        />
-
-        {/* --- Content (Pushed Forward) --- */}
+        {/* 3. FLOATING CONTENT LAYER (3D) */}
         <div 
-          style={{ translateZ: "40px" }} // Pops out of the screen
-          className="absolute inset-0 p-6 md:p-10 flex flex-col justify-end pointer-events-none"
+          style={{ transform: "translateZ(100px)" }}
+          className="absolute inset-0 p-10 md:p-16 flex flex-col justify-end pointer-events-none"
         >
-          {/* Top Info / Number */}
-          <div className="absolute top-8 left-8 right-8 flex justify-between items-start">
-            <span className="text-5xl font-black text-transparent stroke-text-white opacity-30 group-hover:opacity-60 transition-opacity duration-500">
+          {/* Index Stagger Reveal */}
+          <motion.div 
+            style={{ transform: "translateZ(50px)" }}
+            className="absolute top-12 left-12 overflow-hidden"
+          >
+            <motion.span 
+              animate={{ y: isHovered ? 0 : 100 }}
+              className="block text-7xl md:text-9xl font-black text-white/10 leading-none"
+            >
               0{index + 1}
-            </span>
-            
-            {/* Interactive Links (Pointer events restored here) */}
-            <div className="flex gap-4 pointer-events-auto">
-              <motion.a whileHover={{ scale: 1.1, y: -2 }} href={project.github} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full glass-card flex items-center justify-center text-white hover:text-indigo-400 hover:border-indigo-500/50 transition-colors">
-                <FaGithub size={18} />
-              </motion.a>
-              <motion.a whileHover={{ scale: 1.1, y: -2 }} href={project.link} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full glass-card flex items-center justify-center text-white hover:text-cyan-400 hover:border-cyan-400/50 transition-colors">
-                <FaExternalLinkAlt size={16} />
-              </motion.a>
-            </div>
-          </div>
+            </motion.span>
+          </motion.div>
 
-          {/* Title & Description */}
-          <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-            <h3 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tighter">
+          <div className="relative z-10">
+            {/* Title Split Reveal */}
+            <h3 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter leading-none group-hover:skew-x-[-4deg] transition-transform duration-500">
               {project.title}
             </h3>
             
-            <p className="text-slate-400 mb-8 text-sm md:text-base leading-relaxed max-w-md line-clamp-2 group-hover:line-clamp-none transition-all duration-500">
+            <p className="text-slate-400 text-sm md:text-xl font-light leading-relaxed max-w-sm mb-12 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-700 delay-100">
               {project.desc}
             </p>
-            
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2">
-              {project.tags.map(tag => (
-                <span 
+
+            {/* Kinetic Pill Tags */}
+            <div className="flex flex-wrap gap-3">
+              {project.tags.map((tag, i) => (
+                <motion.span 
                   key={tag} 
-                  className="text-[10px] font-mono text-white bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 uppercase tracking-widest font-medium"
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + (i * 0.1) }}
+                  className="px-6 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-2xl text-[10px] font-mono text-white tracking-[0.2em] uppercase"
                 >
                   {tag}
-                </span>
+                </motion.span>
               ))}
             </div>
           </div>
         </div>
+        
+        {/* Full Card Interactive Overlay */}
+        <a href={project.link} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-50 cursor-none" />
       </div>
+
+      {/* 4. UNDER-GLOW PHYSICS */}
+      <motion.div 
+        className="absolute inset-[-20px] -z-10 blur-[100px] rounded-[4rem] opacity-0 group-hover:opacity-40 transition-opacity duration-1000"
+        style={{ backgroundColor: project.color }}
+      />
     </motion.div>
   );
 }
 
 export default function Projects() {
   return (
-    <section id="projects" className="relative py-24 md:py-48 bg-[#0a0a0a] overflow-hidden">
+    <section id="projects" className="relative py-32 md:py-64 bg-[#050505] overflow-hidden">
       
-      {/* Background Noise & Decor */}
-      <div className="pointer-events-none absolute inset-0 z-50 opacity-[0.03] mix-blend-overlay"
-        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
-      />
+      {/* Dynamic Background Noise Decor */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
       <div className="container mx-auto px-6 relative z-10 max-w-7xl">
         
-        {/* Editorial Section Header */}
-        <div className="text-center md:text-left mb-20 md:mb-32 flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div>
+        {/* Editorial Header Architecture */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-16 mb-32 md:mb-56">
+          <div className="max-w-3xl">
             <motion.div 
-              initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-4 text-[10px] font-mono text-cyan-400 uppercase tracking-[0.3em] mb-6 justify-center md:justify-start"
+              initial={{ x: -30, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              transition={{ duration: 1 }}
+              className="flex items-center gap-6 text-cyan-400 font-mono text-[11px] tracking-[0.8em] uppercase mb-10"
             >
-              <span>[04]</span>
-              <div className="w-10 h-[1px] bg-cyan-400" />
-              <span>The Portfolio</span>
+              <div className="w-16 h-px bg-cyan-900" />
+              Selected_Folio_v4
             </motion.div>
 
-            <motion.h2 
-              initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              viewport={{ once: true }}
-              className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-white"
-            >
-              Selected <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 italic font-light">Works.</span>
-            </motion.h2>
+            <h2 className="text-[clamp(3rem,12vw,8rem)] font-black text-white tracking-tighter leading-[0.8] mb-4">
+              Building <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-fuchsia-500 italic font-light pr-6">
+                Legacies.
+              </span>
+            </h2>
           </div>
           
-          <motion.p 
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            viewport={{ once: true }}
-            className="text-slate-400 text-sm md:text-base max-w-xs font-light"
-          >
-            Showcasing high-fidelity UI/UX design integrated with modern full-stack performance.
-          </motion.p>
+          <div className="md:w-1/3 border-l border-white/10 pl-10">
+             <p className="text-slate-500 text-lg md:text-2xl font-extralight leading-relaxed italic">
+                “Turning complex <span className="text-white">back-end systems</span> into effortless <span className="text-white">front-end experiences</span>.”
+             </p>
+          </div>
         </div>
 
-        {/* 3D Offset Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 lg:gap-24">
+        {/* 3D Offset Editorial Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-20 md:gap-x-24 lg:gap-x-40 items-start">
           {projects.map((project, i) => (
             <ProjectCard key={i} project={project} index={i} />
           ))}
         </div>
         
       </div>
-
-      <style dangerouslySetInnerHTML={{__html: `
-        .stroke-text-white {
-          -webkit-text-stroke: 1px rgba(255,255,255,0.1);
-        }
-      `}} />
     </section>
   );
 }

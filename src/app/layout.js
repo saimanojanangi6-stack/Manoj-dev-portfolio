@@ -10,7 +10,7 @@ import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// --- 1. Global Audio Controller (Max Volume Scroll + Music) ---
+// --- 1. Global Audio Controller (Centralized Logic) ---
 function GlobalAudio({ isLoading }) {
   const audioRef = useRef(null);
   const scrollSfx = useRef(null);
@@ -23,7 +23,6 @@ function GlobalAudio({ isLoading }) {
   const lastScrollPos = useRef(0);
 
   useEffect(() => {
-    // Initialize Audio Objects
     audioRef.current = new Audio("/sounds/global-bg.mp3");
     audioRef.current.loop = true;
     audioRef.current.volume = 0; 
@@ -31,16 +30,13 @@ function GlobalAudio({ isLoading }) {
     scrollSfx.current = new Audio("/sounds/scroll-tick.mp3");
     if (scrollSfx.current) {
       scrollSfx.current.volume = 1.0; 
-      scrollSfx.current.playbackRate = 1.6; // Snappier response
+      scrollSfx.current.playbackRate = 1.6;
     }
 
-    // --- Stealth Audio Unlocker ---
     const unlock = () => {
       if (!audioUnlocked.current && audioRef.current) {
-        // Play and immediately pause/mute to "warm up" the audio context
         audioRef.current.play().then(() => {
           audioUnlocked.current = true;
-          // If loading is already done, start music fade-in
           if (!isLoading) startMusicFadeIn();
         }).catch(() => {});
       }
@@ -80,12 +76,10 @@ function GlobalAudio({ isLoading }) {
     }
   }, [isLoading]);
 
-  // --- 100% Rapid Scroll Logic ---
   useEffect(() => {
     const unsubscribe = scrollY.on("change", (latest) => {
       const distance = Math.abs(latest - lastScrollPos.current);
       const velocity = Math.abs(scrollVelocity.get());
-
       if (distance > 60 && velocity > 20) {
         if (scrollSfx.current && audioUnlocked.current) {
           scrollSfx.current.currentTime = 0;
@@ -142,7 +136,7 @@ function GlobalAudio({ isLoading }) {
   );
 }
 
-// --- 2. Custom Designer Cursor (MAX VOLUME) ---
+// --- 2. Custom Designer Cursor ---
 function CustomCursor() {
   const [isHovered, setIsHovered] = useState(false);
   const cursorX = useMotionValue(-100);
@@ -233,6 +227,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className="selection:bg-cyan-400 selection:text-black">
       <body className={`${inter.className} bg-[#0a0a0a] text-white antialiased overflow-x-hidden md:cursor-none`}>
         
+        {/* Global Grain */}
         <div 
           className="pointer-events-none fixed inset-0 z-[10001] opacity-[0.03] mix-blend-overlay"
           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
@@ -252,11 +247,13 @@ export default function RootLayout({ children }) {
                 key="content"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 1.2, ease: "easeOut" }}
-                className="relative z-10"
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                /* REDUCED PADDING AND SPACING HERE */
+                className="relative z-10 flex flex-col min-h-screen"
               >
                 <Navbar />
-                <main>{children}</main>
+                {/* Removed extra padding-top to let Hero handle its own spacing */}
+                <main className="flex-grow">{children}</main>
                 <Footer />
               </motion.div>
             )}
