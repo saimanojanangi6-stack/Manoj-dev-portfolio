@@ -1,12 +1,13 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { 
   motion, 
   useScroll, 
   useTransform, 
   useMotionValue, 
   useSpring, 
-  useMotionTemplate 
+  useMotionTemplate,
+  useInView 
 } from "framer-motion";
 import { 
   HiOutlineMagnifyingGlass, 
@@ -46,32 +47,31 @@ const steps = [
   }
 ];
 
-// --- Ultimate Spotlight & 3D Card Component ---
-function ProcessCard({ step, index }) {
+function ProcessCard({ step, index, onHoverSound }) {
   const cardRef = useRef(null);
-  
-  // Spotlight coordinates
+  const isInView = useInView(cardRef, { once: true, amount: 0.5 });
+  const revealSfx = useRef(null);
+
+  useEffect(() => {
+    revealSfx.current = new Audio("/sounds/process-reveal.mp3");
+    if (revealSfx.current) revealSfx.current.volume = 0.4;
+
+    if (isInView && revealSfx.current) {
+      revealSfx.current.play().catch(() => {});
+    }
+  }, [isInView]);
+
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-
-  // 3D Tilt physics
   const tiltX = useSpring(useMotionValue(0), { damping: 20, stiffness: 100 });
   const tiltY = useSpring(useMotionValue(0), { damping: 20, stiffness: 100 });
 
   const handleMouseMove = (e) => {
     const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Update Spotlight
-    mouseX.set(x);
-    mouseY.set(y);
-
-    // Update 3D Tilt
-    const rotateX = ((y / rect.height) - 0.5) * -15; // Max 15 deg
-    const rotateY = ((x / rect.width) - 0.5) * 15;
-    tiltX.set(rotateX);
-    tiltY.set(rotateY);
+    mouseX.set(e.clientX - rect.left);
+    mouseY.set(e.clientY - rect.top);
+    tiltX.set(((e.clientY - rect.top) / rect.height - 0.5) * -15);
+    tiltY.set(((e.clientX - rect.left) / rect.width - 0.5) * 15);
   };
 
   const handleMouseLeave = () => {
@@ -79,25 +79,12 @@ function ProcessCard({ step, index }) {
     tiltY.set(0);
   };
 
-  // Mobile touch equivalent
-  const handleTouchMove = (e) => {
-    const rect = cardRef.current.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    mouseX.set(x);
-    mouseY.set(y);
-    tiltX.set(((y / rect.height) - 0.5) * -15);
-    tiltY.set(((x / rect.width) - 0.5) * 15);
-  };
-
   return (
     <motion.div
       ref={cardRef}
       onMouseMove={handleMouseMove}
+      onMouseEnter={onHoverSound}
       onMouseLeave={handleMouseLeave}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleMouseLeave}
       initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 1, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -105,44 +92,21 @@ function ProcessCard({ step, index }) {
       style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
       className={`relative w-full rounded-[2rem] p-[1px] group perspective-1000 ${step.shadow} hover:shadow-2xl transition-shadow duration-500 z-10`}
     >
-      {/* 1. Mouse-Tracking Glowing Border */}
       <motion.div
         className="absolute inset-0 rounded-[2rem] z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         style={{
-          background: useMotionTemplate`
-            radial-gradient(400px circle at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.4), transparent 40%)
-          `,
+          background: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.4), transparent 40%)`,
         }}
       />
       
-      {/* 2. Main Glass Card Body */}
       <div className="relative h-full w-full bg-[#0a0a0a]/80 backdrop-blur-xl rounded-[2rem] p-8 md:p-10 overflow-hidden z-10 flex flex-col justify-between border border-white/5">
-        
-        {/* Mouse-Tracking Inner Glow */}
-        <motion.div
-          className="absolute inset-0 z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: useMotionTemplate`
-              radial-gradient(400px circle at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.03), transparent 40%)
-            `,
-          }}
-        />
-
-        {/* 3. Massive Background Number */}
-        <div 
-          className="absolute -right-6 -bottom-10 text-[12rem] md:text-[14rem] font-black z-0 pointer-events-none select-none opacity-20 group-hover:opacity-40 transition-opacity duration-500"
-          style={{ transform: "translateZ(10px)" }}
-        >
+        <div className="absolute -right-6 -bottom-10 text-[12rem] md:text-[14rem] font-black z-0 pointer-events-none select-none opacity-20 group-hover:opacity-40 transition-opacity duration-500" style={{ transform: "translateZ(10px)" }}>
           <span className="text-transparent stroke-text-white">0{index + 1}</span>
         </div>
 
-        {/* 4. Card Content */}
         <div className="relative z-10" style={{ transform: "translateZ(30px)" }}>
           <div className="flex justify-between items-start mb-8">
-            <motion.div 
-              whileHover={{ rotate: 15, scale: 1.1 }}
-              className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.color} p-[1px] flex items-center justify-center`}
-            >
+            <motion.div whileHover={{ rotate: 15, scale: 1.1 }} className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.color} p-[1px] flex items-center justify-center`}>
               <div className="w-full h-full bg-[#0a0a0a] rounded-2xl flex items-center justify-center text-3xl text-white">
                 {step.icon}
               </div>
@@ -167,8 +131,20 @@ function ProcessCard({ step, index }) {
 
 export default function Process() {
   const containerRef = useRef(null);
-  
-  // --- Dynamic Central Timeline Scroll Logic ---
+  const hoverSfx = useRef(null);
+
+  useEffect(() => {
+    hoverSfx.current = new Audio("/sounds/process-card-hover.mp3");
+    if (hoverSfx.current) hoverSfx.current.volume = 0.3;
+  }, []);
+
+  const playHoverSound = () => {
+    if (hoverSfx.current) {
+      hoverSfx.current.currentTime = 0;
+      hoverSfx.current.play().catch(() => {});
+    }
+  };
+
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start center", "end center"]
@@ -177,74 +153,34 @@ export default function Process() {
   const pathHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
   
   return (
-    <section 
-      id="about" 
-      ref={containerRef}
-      className="relative py-32 md:py-48 bg-[#0a0a0a] overflow-hidden"
-    >
-      {/* Premium Film Grain Noise Overlay */}
+    <section id="process" ref={containerRef} className="relative py-32 md:py-48 bg-[#0a0a0a] overflow-hidden">
       <div className="pointer-events-none absolute inset-0 z-50 opacity-[0.03] mix-blend-overlay"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
       />
 
-      {/* Massive Background Typography */}
-      <div className="absolute top-0 left-0 w-full overflow-hidden pointer-events-none flex justify-center opacity-[0.02] z-0 select-none">
-        <h2 className="text-[20vw] font-black text-transparent stroke-text-white whitespace-nowrap leading-none mt-20">
-          METHODOLOGY
-        </h2>
-      </div>
-
       <div className="container mx-auto px-6 relative z-10 max-w-7xl">
-        
-        {/* Section Header */}
         <div className="text-center mb-20 md:mb-32">
-          <motion.div 
-            initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-4 text-[10px] font-mono text-cyan-400 uppercase tracking-[0.3em] mb-6"
-          >
+          <motion.div className="inline-flex items-center gap-4 text-[10px] font-mono text-cyan-400 uppercase tracking-[0.3em] mb-6">
             <span>[02]</span>
             <div className="w-10 h-[1px] bg-cyan-400" />
             <span>The Blueprint</span>
           </motion.div>
           
-          <motion.h2 
-            initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-6xl lg:text-7xl font-bold text-white tracking-tighter"
-          >
+          <motion.h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white tracking-tighter">
             Engineering <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 italic font-light pr-2">Excellence.</span>
           </motion.h2>
         </div>
 
-        {/* --- The Zig-Zag Spatial Grid --- */}
         <div className="relative">
-          
-          {/* Animated Central Timeline Line (Desktop Only) */}
           <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-[1px] bg-white/5 -translate-x-1/2">
-            <motion.div 
-              style={{ height: pathHeight }}
-              className="w-full bg-gradient-to-b from-cyan-400 via-indigo-500 to-transparent shadow-[0_0_15px_rgba(6,182,212,0.8)]"
-            />
+            <motion.div style={{ height: pathHeight }} className="w-full bg-gradient-to-b from-cyan-400 via-indigo-500 to-transparent shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-x-24 md:gap-y-32">
             {steps.map((step, i) => (
-              <div 
-                key={i} 
-                className={`flex ${i % 2 === 0 ? "md:justify-end" : "md:justify-start md:mt-32"} relative`}
-              >
-                {/* Timeline Nodes (Desktop Only) */}
-                <div className={`hidden md:flex absolute top-1/2 -translate-y-1/2 ${i % 2 === 0 ? "-right-12 translate-x-1/2" : "-left-12 -translate-x-1/2"} w-4 h-4 rounded-full bg-[#0a0a0a] border-2 border-slate-700 items-center justify-center z-20 transition-colors duration-500 group-hover:border-cyan-400`}>
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-500 group-hover:bg-cyan-400 transition-colors duration-500" />
-                </div>
-
+              <div key={i} className={`flex ${i % 2 === 0 ? "md:justify-end" : "md:justify-start md:mt-32"} relative`}>
                 <div className="w-full xl:w-[90%]">
-                  <ProcessCard step={step} index={i} />
+                  <ProcessCard step={step} index={i} onHoverSound={playHoverSound} />
                 </div>
               </div>
             ))}
@@ -253,9 +189,7 @@ export default function Process() {
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
-        .stroke-text-white {
-          -webkit-text-stroke: 1px rgba(255,255,255,0.05);
-        }
+        .stroke-text-white { -webkit-text-stroke: 1px rgba(255,255,255,0.05); }
       `}} />
     </section>
   );

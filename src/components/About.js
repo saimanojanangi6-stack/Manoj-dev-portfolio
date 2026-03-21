@@ -1,195 +1,309 @@
 "use client";
-import { useRef } from "react";
-import { motion, useScroll, useTransform, useMotionValue, useSpring } from "framer-motion";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { motion, useSpring, useTransform, useMotionValue, useInView, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 export default function About() {
-  const sectionRef = useRef(null);
+  const containerRef = useRef(null);
+  const isInView = useInView(containerRef, { once: true, amount: 0.3 });
 
-  // --- 1. Kinetic Scroll (Giant Background Text) ---
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
-  
-  // Adjusted for mobile speeds
-  const marqueeX1 = useTransform(scrollYProgress, [0, 1], ["0%", "-50%"]);
-  const marqueeX2 = useTransform(scrollYProgress, [0, 1], ["-50%", "0%"]);
+  // --- AUDIO REFS ---
+  const scrambleSfx = useRef(null);
+  const ambientSfx = useRef(null);
+  const hasPlayedScramble = useRef(false);
 
-  // --- 2. Holographic 3D Hover & TOUCH Logic ---
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-  
-  const springConfig = { damping: 20, stiffness: 100, mass: 0.5 };
-  const smoothMouseX = useSpring(mouseX, springConfig);
-  const smoothMouseY = useSpring(mouseY, springConfig);
+  useEffect(() => {
+    // 1. Initialize Audio Files with Full Volume
+    scrambleSfx.current = new Audio("/sounds/about-scramble.mp3");
+    ambientSfx.current = new Audio("/sounds/about-ambient.mp3");
 
-  const rotateY = useTransform(smoothMouseX, [0, 1], ["-15deg", "15deg"]);
-  const rotateX = useTransform(smoothMouseY, [0, 1], ["15deg", "-15deg"]);
-  
-  const imageX = useTransform(smoothMouseX, [0, 1], ["10%", "-10%"]);
-  const imageY = useTransform(smoothMouseY, [0, 1], ["10%", "-10%"]);
-  
-  const glareX = useTransform(smoothMouseX, [0, 1], ["-100%", "100%"]);
-  const glareY = useTransform(smoothMouseY, [0, 1], ["-100%", "100%"]);
+    if (scrambleSfx.current) {
+      scrambleSfx.current.volume = 1.0; // 100% Volume
+      scrambleSfx.current.preservesPitch = false; // Makes it sound more "glitchy"
+    }
+    
+    if (ambientSfx.current) {
+      ambientSfx.current.loop = true;
+      ambientSfx.current.volume = 0.15;
+    }
 
-  // Handles Desktop Mouse
-  const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    mouseX.set(x);
-    mouseY.set(y);
+    // "Pre-warm" the audio objects to bypass browser lock
+    const warmAudio = () => {
+      if (scrambleSfx.current) {
+        scrambleSfx.current.play().then(() => {
+          scrambleSfx.current.pause();
+          scrambleSfx.current.currentTime = 0;
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener("mousedown", warmAudio, { once: true });
+
+    return () => {
+      if (ambientSfx.current) ambientSfx.current.pause();
+      window.removeEventListener("mousedown", warmAudio);
+    };
+  }, []);
+
+  // Play ambient hum when component enters view
+  useEffect(() => {
+    if (isInView && ambientSfx.current) {
+      ambientSfx.current.play().catch(() => {});
+    }
+  }, [isInView]);
+
+  // ==========================================
+  // 1. ADVANCED MOUSE TRACKING & PARALLAX
+  // ==========================================
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const smoothMouseX = useSpring(mouseX, { stiffness: 40, damping: 25, mass: 0.8 });
+  const smoothMouseY = useSpring(mouseY, { stiffness: 40, damping: 25, mass: 0.8 });
+
+  const tiltX = useSpring(0, { stiffness: 80, damping: 25, mass: 0.5 });
+  const tiltY = useSpring(0, { stiffness: 80, damping: 25, mass: 0.5 });
+
+  const parallaxX = useSpring(0, { stiffness: 30, damping: 20 });
+  const parallaxY = useSpring(0, { stiffness: 30, damping: 20 });
+
+  const handleMouseMove = useCallback((e) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+    mouseX.set(e.clientX);
+    mouseY.set(e.clientY);
+    tiltX.set((relY - 0.5) * -8);
+    tiltY.set((relX - 0.5) * 8);
+    parallaxX.set((relX - 0.5) * 20);
+    parallaxY.set((relY - 0.5) * 20);
+  }, [mouseX, mouseY, tiltX, tiltY, parallaxX, parallaxY]);
+
+  const handleMouseLeave = useCallback(() => {
+    tiltX.set(0);
+    tiltY.set(0);
+    parallaxX.set(0);
+    parallaxY.set(0);
+  }, [tiltX, tiltY, parallaxX, parallaxY]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("mousemove", handleMouseMove);
+    el.addEventListener("mouseleave", handleMouseLeave);
+    return () => {
+      el.removeEventListener("mousemove", handleMouseMove);
+      el.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [handleMouseMove, handleMouseLeave]);
+
+  // ==========================================
+  // 2. ENHANCED PARTICLE SYSTEM
+  // ==========================================
+  const [particles, setParticles] = useState([]);
+  const [glowOrbs, setGlowOrbs] = useState([]);
+
+  useEffect(() => {
+    const newParticles = Array.from({ length: 35 }).map((_, i) => ({
+      id: i,
+      size: Math.random() * 2.5 + 0.5,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      duration: Math.random() * 20 + 12,
+      delay: Math.random() * 8,
+      opacity: Math.random() * 0.6 + 0.2,
+      drift: (Math.random() - 0.5) * 30,
+    }));
+    setParticles(newParticles);
+
+    const orbs = Array.from({ length: 4 }).map((_, i) => ({
+      id: i,
+      size: Math.random() * 200 + 100,
+      x: Math.random() * 80 + 10,
+      y: Math.random() * 80 + 10,
+      duration: Math.random() * 25 + 15,
+      color: i % 2 === 0 ? "rgba(6,182,212,0.04)" : "rgba(99,102,241,0.03)",
+    }));
+    setGlowOrbs(orbs);
+  }, []);
+
+  // ==========================================
+  // 3. TEXT SCRAMBLE EFFECT + SFX UNLOCK
+  // ==========================================
+  const [displayText, setDisplayText] = useState("");
+  const targetText = "ENGINEER";
+
+  useEffect(() => {
+    if (!isInView) return;
+
+    // FORCED SFX PLAYBACK AT 100%
+    if (scrambleSfx.current && !hasPlayedScramble.current) {
+      scrambleSfx.current.currentTime = 0;
+      scrambleSfx.current.play().catch((e) => console.warn("Scramble SFX blocked by browser. Click page to unlock."));
+      hasPlayedScramble.current = true;
+    }
+
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%";
+    let iteration = 0;
+    const maxIterations = targetText.length * 4;
+
+    const interval = setInterval(() => {
+      setDisplayText(
+        targetText
+          .split("")
+          .map((char, index) => {
+            if (index < Math.floor(iteration / 4)) return char;
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+
+      iteration++;
+      if (iteration > maxIterations) {
+        setDisplayText(targetText);
+        // Stop Scramble SFX smoothly when text resolves
+        if (scrambleSfx.current) {
+          let fadeOut = setInterval(() => {
+            if (scrambleSfx.current.volume > 0.1) {
+              scrambleSfx.current.volume -= 0.1;
+            } else {
+              scrambleSfx.current.pause();
+              clearInterval(fadeOut);
+            }
+          }, 50);
+        }
+        clearInterval(interval);
+      }
+    }, 40);
+
+    return () => clearInterval(interval);
+  }, [isInView]);
+
+  const skills = [
+    { name: "NEXT.JS", level: 95, color: "from-cyan-400 to-cyan-600" },
+    { name: "TAILWIND", level: 90, color: "from-indigo-400 to-indigo-600" },
+    { name: "FRAMER", level: 88, color: "from-purple-400 to-purple-600" },
+    { name: "REACT", level: 92, color: "from-blue-400 to-blue-600" },
+    { name: "TYPESCRIPT", level: 85, color: "from-emerald-400 to-emerald-600" },
+  ];
+
+  const containerVariants = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.15, delayChildren: 0.3 } },
   };
 
-  // Handles Mobile Touch / Swiping
-  const handleTouchMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = (touch.clientX - rect.left) / rect.width;
-    const y = (touch.clientY - rect.top) / rect.height;
-    mouseX.set(x);
-    mouseY.set(y);
+  const bgTextAnim = {
+    hidden: { scale: 0.95, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 0.06,
+      transition: { duration: 1.8, ease: [0.16, 1, 0.3, 1] },
+    },
   };
 
-  const handleReset = () => {
-    mouseX.set(0.5);
-    mouseY.set(0.5);
-  };
-
-  // --- 3. Text Reveal Animation ---
-  const textReveal = {
-    hidden: { opacity: 0, y: 40, filter: "blur(10px)" },
-    visible: (custom) => ({
+  const portraitAnim = {
+    hidden: { scale: 0.85, opacity: 0, y: 40, rotateY: -15 },
+    visible: {
+      scale: 1,
       opacity: 1,
       y: 0,
-      filter: "blur(0px)",
-      transition: { delay: custom * 0.1, duration: 1, ease: [0.25, 1, 0.5, 1] }
-    })
+      rotateY: 0,
+      transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 },
+    },
   };
 
+  const bioAnim = {
+    hidden: { opacity: 0, x: 60, filter: "blur(12px)" },
+    visible: {
+      opacity: 1,
+      x: 0,
+      filter: "blur(0px)",
+      transition: { duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.8 },
+    },
+  };
+
+  const lineVariant = {
+    hidden: { scaleX: 0 },
+    visible: { scaleX: 1, transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 1.2 } },
+  };
+
+  const skillVariant = (i) => ({
+    hidden: { opacity: 0, x: 20 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.6, delay: 1.4 + i * 0.1, ease: "easeOut" } },
+  });
+
+  const skillBarVariant = (level, i) => ({
+    hidden: { width: "0%" },
+    visible: { width: `${level}%`, transition: { duration: 1.2, delay: 1.6 + i * 0.1, ease: [0.16, 1, 0.3, 1] } },
+  });
+
   return (
-    <section 
-      id="about" 
-      ref={sectionRef}
-      className="relative min-h-screen py-24 md:py-32 overflow-hidden bg-[#0a0a0a] flex items-center"
+    <section
+      ref={containerRef}
+      id="about"
+      className="relative min-h-screen w-full bg-[#020204] overflow-hidden flex items-center justify-center py-20 md:py-28"
+      style={{ perspective: "2000px" }}
     >
-      {/* Noise Overlay */}
-      <div className="pointer-events-none absolute inset-0 z-50 opacity-[0.03] mix-blend-overlay"
-        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
-      />
-
-      {/* Kinetic Scroll Background (Adjusted text sizes for mobile) */}
-      <div className="absolute inset-0 flex flex-col justify-center gap-6 md:gap-10 opacity-[0.02] pointer-events-none z-0 overflow-hidden text-white font-black whitespace-nowrap text-[20vw] md:text-[15vw] leading-none tracking-tighter select-none">
-        <motion.div style={{ x: marqueeX1 }}>UI/UX DESIGNER FULL STACK ENGINEER</motion.div>
-        <motion.div style={{ x: marqueeX2 }} className="text-transparent stroke-text">MANOJ DEV MANOJ DEV MANOJ DEV</motion.div>
-        <motion.div style={{ x: marqueeX1 }}>NEXT.JS FIGMA PRISMA TAILWIND</motion.div>
-      </div>
-
-      <div className="container mx-auto px-6 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-16 lg:gap-24 xl:gap-32">
-          
-          {/* --- The Holographic Window --- */}
-          <div className="w-full lg:w-1/2 flex justify-center perspective-[2000px]">
-            <motion.div
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleReset}
-              onTouchMove={handleTouchMove}   // Mobile Touch Trigger
-              onTouchEnd={handleReset}        // Mobile Touch Release
-              style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-              // Responsive sizing: fits mobile screens perfectly while staying large on desktop
-              className="relative w-[85vw] max-w-[340px] aspect-[3/4] md:w-[400px] md:h-[500px] rounded-3xl cursor-none group touch-pan-y"
-            >
-              {/* Outer Glow */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-3xl blur-2xl opacity-30 md:opacity-20 group-hover:opacity-40 transition-opacity duration-700" />
-              
-              <div className="absolute inset-0 rounded-3xl overflow-hidden border border-white/10 bg-[#111]">
-                {/* Parallax Image */}
-                <motion.div 
-                  style={{ x: imageX, y: imageY, scale: 1.2 }}
-                  className="absolute inset-0 w-full h-full"
-                >
-                  <Image 
-                    src="/manoj.jpg" 
-                    alt="Manoj"
-                    fill
-                    className="object-cover grayscale group-hover:grayscale-0 transition-all duration-1000"
-                  />
-                </motion.div>
-
-                {/* Glare Effect */}
-                <motion.div 
-                  style={{ left: glareX, top: glareY }}
-                  className="absolute w-[200%] h-[200%] bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-1/2 -translate-y-1/2 rotate-45 pointer-events-none"
-                />
-                
-                <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)] pointer-events-none" />
-              </div>
-
-              {/* Floating 3D Badge */}
-              <motion.div 
-                style={{ translateZ: "50px" }}
-                className="absolute -bottom-5 -right-2 md:-right-10 glass-card px-4 py-3 md:px-6 md:py-4 rounded-2xl border border-white/10 backdrop-blur-xl flex items-center gap-3 shadow-2xl"
-              >
-                <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-cyan-400 rounded-full animate-pulse" />
-                <span className="text-xs md:text-sm font-mono text-white tracking-widest uppercase">Open to Work</span>
-              </motion.div>
-            </motion.div>
-          </div>
-
-          {/* --- Spatial Typography --- */}
-          <div className="w-full lg:w-1/2 flex flex-col justify-center relative pointer-events-none lg:pointer-events-auto text-center lg:text-left">
-            <motion.h2 
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-8 z-20"
-            >
-              <motion.div custom={1} variants={textReveal}>I CRAFT</motion.div>
-              <motion.div custom={2} variants={textReveal} className="text-cyan-400">DIGITAL</motion.div>
-              <motion.div custom={3} variants={textReveal}>REALITIES.</motion.div>
-            </motion.h2>
-
-            <motion.div 
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="space-y-6 max-w-lg mx-auto lg:mx-0 z-10"
-            >
-              <motion.p custom={4} variants={textReveal} className="text-base sm:text-lg md:text-xl text-slate-300 font-light leading-relaxed">
-                I am <b className="text-white font-semibold">Manoj</b>. Not just a developer, not just a designer. I am the bridge between hyper-aesthetic visual concepts and scalable, robust engineering.
-              </motion.p>
-              
-              <motion.p custom={5} variants={textReveal} className="text-sm sm:text-base text-slate-400 font-light leading-relaxed">
-                Leveraging <span className="text-cyan-400 border-b border-cyan-400/30 pb-1">Figma</span> for pixel-perfect intuition and <span className="text-indigo-400 border-b border-indigo-400/30 pb-1">Next.js</span> for uncompromised performance.
-              </motion.p>
-
-              <motion.div 
-                custom={6} variants={textReveal}
-                className="w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent lg:from-cyan-500/50 lg:via-cyan-500/50 lg:to-transparent my-8"
-              />
-
-              <div className="flex justify-center lg:justify-start gap-12">
-                <motion.div custom={7} variants={textReveal}>
-                  <div className="text-3xl font-black text-white">10<span className="text-cyan-400">+</span></div>
-                  <div className="text-[10px] sm:text-xs font-mono text-slate-500 uppercase tracking-widest mt-1">Projects</div>
-                </motion.div>
-                <motion.div custom={8} variants={textReveal}>
-                  <div className="text-3xl font-black text-white">100<span className="text-indigo-400">%</span></div>
-                  <div className="text-[10px] sm:text-xs font-mono text-slate-500 uppercase tracking-widest mt-1">Delivery</div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
-
-        </div>
-      </div>
+      {/* Noise Texture */}
+      <div className="absolute inset-0 z-[1] opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")` }} />
       
-      <style dangerouslySetInnerHTML={{__html: `
-        .stroke-text {
-          -webkit-text-stroke: 1px rgba(255,255,255,0.1);
-        }
-      `}} />
+      {/* Orbs */}
+      {glowOrbs.map((orb) => (
+        <motion.div key={orb.id} className="absolute rounded-full pointer-events-none z-[3]" style={{ width: orb.size, height: orb.size, left: `${orb.x}%`, top: `${orb.y}%`, background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`, filter: "blur(40px)" }} animate={{ x: [0, 50, -30, 0], y: [0, -40, 60, 0] }} transition={{ duration: orb.duration, repeat: Infinity, ease: "easeInOut" }} />
+      ))}
+
+      {/* Floating Particles */}
+      <div className="absolute inset-0 z-[5] pointer-events-none">
+        {particles.map((p) => (
+          <motion.div key={p.id} className="absolute rounded-full" style={{ width: p.size, height: p.size, left: `${p.x}%`, top: `${p.y}%`, background: `radial-gradient(circle, rgba(6,182,212,${p.opacity}) 0%, transparent 100%)`, boxShadow: `0 0 ${p.size * 3}px rgba(6,182,212,${p.opacity * 0.5})` }} animate={{ y: [0, -1000], x: [0, p.drift], opacity: [0, p.opacity, p.opacity, 0] }} transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: "linear" }} />
+        ))}
+      </div>
+
+      {/* BACKGROUND TEXT */}
+      <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={bgTextAnim} className="absolute inset-0 z-[6] flex items-center justify-center pointer-events-none select-none">
+        <h1 className="text-[15vw] md:text-[18vw] font-black text-transparent bg-clip-text bg-gradient-to-b from-white/80 to-white/5 leading-none tracking-[-0.05em] uppercase">
+          {displayText || "ENGINEER"}
+        </h1>
+      </motion.div>
+
+      {/* Main Content */}
+      <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={containerVariants} className="relative z-10 w-full max-w-6xl mx-auto px-6 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-20">
+        
+        {/* PORTRAIT */}
+        <motion.div variants={portraitAnim} style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }} className="relative z-[10] flex flex-col items-center w-[260px] md:w-[320px] flex-shrink-0 group">
+          <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden border border-white/[0.08] bg-black/80 shadow-2xl group-hover:border-cyan-500/20 transition-all duration-700">
+            <Image src="/manoj.jpg" alt="Manoj Dev" fill className="object-cover object-center contrast-[1.1] saturate-[0.6] group-hover:saturate-100 group-hover:scale-105 transition-all duration-1000" priority />
+            <motion.div animate={{ y: ["-100%", "250%"] }} transition={{ duration: 4, repeat: Infinity, ease: "linear", repeatDelay: 1 }} className="absolute inset-x-0 h-[15%] bg-gradient-to-b from-transparent via-cyan-400/15 to-transparent pointer-events-none mix-blend-overlay" />
+          </div>
+        </motion.div>
+
+        {/* BIO CARD */}
+        <motion.div variants={bioAnim} className="relative z-[20] w-full max-w-lg">
+          <div className="relative w-full bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8 md:p-10 overflow-hidden group/card hover:border-white/[0.1] transition-all duration-700">
+            <motion.div variants={lineVariant} className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent origin-left" />
+            <h3 className="text-3xl md:text-4xl font-bold text-white mb-2 leading-[1.1]">Beyond the</h3>
+            <h3 className="text-3xl md:text-4xl font-bold mb-6 leading-[1.1]"><span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">Interface.</span></h3>
+            
+            <p className="text-white/50 text-sm leading-[1.8] font-light mb-8">
+              I merge aesthetic design with precise engineering to craft high-performance <span className="text-cyan-400 font-medium">digital experiences</span>.
+            </p>
+
+            <div className="space-y-3 mb-8">
+              {skills.map((skill, i) => (
+                <motion.div key={skill.name} custom={i} variants={skillVariant(i)}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono text-white/40 tracking-[0.2em]">{skill.name}</span>
+                    <span className="text-[10px] font-mono text-white/20">{skill.level}%</span>
+                  </div>
+                  <div className="w-full h-[2px] bg-white/[0.04] rounded-full overflow-hidden">
+                    <motion.div variants={skillBarVariant(skill.level, i)} className={`h-full rounded-full bg-gradient-to-r ${skill.color}`} />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }

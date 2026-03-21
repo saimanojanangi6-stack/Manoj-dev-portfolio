@@ -74,28 +74,26 @@ function AnimatedCounter({ from, to, delay }) {
 }
 
 // --- 2. Responsive HUD Dial Component ---
-const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
-  // Switched from hardcoded pixels to a responsive viewBox
+const CircularHUD = ({ level, icon, name, isHighlighted, index, onHover }) => {
   const radius = 40;
-  const circumference = 2 * Math.PI * radius; // Approx 251.2
+  const circumference = 2 * Math.PI * radius; 
   const delay = 0.3 + (index * 0.15);
 
   return (
-    <div className="flex flex-col items-center gap-3 md:gap-4 group/item relative z-20 w-full" style={{ transform: "translateZ(40px)" }}>
-      {/* Container scales based on screen size: w-16 on mobile, up to w-24 on desktop */}
+    <div 
+      onMouseEnter={onHover}
+      className="flex flex-col items-center gap-3 md:gap-4 group/item relative z-20 w-full" 
+      style={{ transform: "translateZ(40px)" }}
+    >
       <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex items-center justify-center">
-        
-        {/* Outer Rotating Dashed Ring */}
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           className={`absolute inset-0 rounded-full border border-dashed ${isHighlighted ? "border-indigo-500/30" : "border-white/10"}`}
         />
 
-        {/* Scalable SVG Engine */}
         <svg viewBox="0 0 100 100" className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] rotate-[-90deg] drop-shadow-2xl">
           <circle cx="50" cy="50" r={radius} stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
-          
           <motion.circle
             cx="50" cy="50" r={radius}
             stroke={`url(#gradient-${name.replace(/\s+/g, '')})`}
@@ -117,7 +115,6 @@ const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
           </defs>
         </svg>
         
-        {/* Responsive Icon */}
         <motion.div 
           animate={{ y: [0, -4, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.2 }}
@@ -128,7 +125,6 @@ const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
         </motion.div>
       </div>
       
-      {/* Label & Dynamic Counter */}
       <div className="text-center w-full">
         <div className="text-[10px] sm:text-xs md:text-sm font-bold text-slate-200 group-hover/item:text-white transition-colors tracking-wide truncate px-1">
           {name}
@@ -140,7 +136,7 @@ const CircularHUD = ({ level, icon, name, isHighlighted, index }) => {
 };
 
 // --- 3. 3D Spotlight Card ---
-function SkillCard({ skill, index }) {
+function SkillCard({ skill, index, onIconHover }) {
   const cardRef = useRef(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -150,24 +146,10 @@ function SkillCard({ skill, index }) {
 
   const handleMouseMove = (e) => {
     const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    mouseX.set(x);
-    mouseY.set(y);
-    tiltX.set(((y / rect.height) - 0.5) * -10);
-    tiltY.set(((x / rect.width) - 0.5) * 10);
-  };
-
-  const handleTouchMove = (e) => {
-    // Reduced tilt math for touch devices to avoid breaking mobile scrolling
-    const rect = cardRef.current.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    mouseX.set(x);
-    mouseY.set(y);
-    tiltX.set(((y / rect.height) - 0.5) * -5);
-    tiltY.set(((x / rect.width) - 0.5) * 5);
+    mouseX.set(e.clientX - rect.left);
+    mouseY.set(e.clientY - rect.top);
+    tiltX.set(((e.clientY - rect.top) / rect.height - 0.5) * -10);
+    tiltY.set(((e.clientX - rect.left) / rect.width - 0.5) * 10);
   };
 
   const handleReset = () => {
@@ -180,17 +162,13 @@ function SkillCard({ skill, index }) {
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleReset}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleReset}
       initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 1, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
       viewport={{ once: true, margin: "-50px" }}
       style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
-      /* ADDED touch-pan-y so vertical scrolling isn't blocked on mobile */
       className={`relative w-full rounded-[2.5rem] p-[1px] group perspective-1000 touch-pan-y ${skill.highlight ? "z-20 lg:scale-105" : "z-10"}`}
     >
-      {/* Magnetic Spotlight Border */}
       <motion.div
         className="absolute inset-0 rounded-[2.5rem] z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         style={{
@@ -198,33 +176,18 @@ function SkillCard({ skill, index }) {
         }}
       />
 
-      {/* Main Glass Card (Reduced padding for mobile) */}
       <div className={`relative h-full w-full bg-[#0a0a0a]/90 backdrop-blur-2xl rounded-[2.5rem] p-6 md:p-10 z-10 border-t-2 ${skill.border} shadow-2xl ${skill.glow}`}>
-        
-        {/* Inner Hover Ambient Glow */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[2.5rem]" />
-
-        {/* Header floating effect */}
         <div className="flex justify-between items-center mb-10 md:mb-12" style={{ transform: "translateZ(20px)" }}>
-          <h3 className={`text-xl md:text-2xl font-black tracking-tight ${skill.highlight ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-slate-300"}`}>
+          <h3 className={`text-xl md:text-2xl font-black tracking-tight ${skill.highlight ? "text-white" : "text-slate-300"}`}>
             {skill.category}
           </h3>
-          {skill.highlight && (
-            <motion.span 
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="px-2 py-1 md:px-3 md:py-1 bg-indigo-500/10 text-indigo-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-500/30"
-            >
-              Specialized
-            </motion.span>
-          )}
         </div>
 
-        {/* CHANGED: Replaced flex with a grid so items don't squash horizontally on small screens */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 place-items-center w-full">
           {skill.items.map((item, i) => (
             <CircularHUD 
               key={i} index={i} name={item.name} level={item.level} icon={item.icon} isHighlighted={skill.highlight} 
+              onHover={onIconHover}
             />
           ))}
         </div>
@@ -234,24 +197,46 @@ function SkillCard({ skill, index }) {
 }
 
 export default function Skills() {
+  const sectionRef = useRef(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.2 });
+  
+  // Audio Refs
+  const revealSfx = useRef(null);
+  const hoverSfx = useRef(null);
+
+  useEffect(() => {
+    // Initialize SFX
+    revealSfx.current = new Audio("/sounds/skills-reveal.mp3");
+    hoverSfx.current = new Audio("/sounds/skills-hover.mp3");
+
+    if (revealSfx.current) revealSfx.current.volume = 0.5;
+    if (hoverSfx.current) hoverSfx.current.volume = 0.3;
+
+    // Play reveal sound when section is scrolled into view
+    if (isInView && revealSfx.current) {
+      revealSfx.current.play().catch(() => {});
+    }
+  }, [isInView]);
+
+  const playHoverSound = () => {
+    if (hoverSfx.current) {
+      hoverSfx.current.currentTime = 0;
+      hoverSfx.current.play().catch(() => {});
+    }
+  };
+
   return (
-    <section id="skills" className="py-24 md:py-40 bg-[#0a0a0a] relative overflow-hidden">
-      
-      {/* Background Noise & Decor */}
+    <section ref={sectionRef} id="skills" className="py-24 md:py-40 bg-[#0a0a0a] relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 z-50 opacity-[0.03] mix-blend-overlay"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
       />
       
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-900/10 blur-[150px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/3" />
-
       <div className="container mx-auto px-6 relative z-10">
-        
-        {/* Editorial Section Header */}
         <div className="text-center mb-16 md:mb-24">
           <motion.div 
-            initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1 }}
             viewport={{ once: true }}
             className="inline-flex items-center gap-4 text-[10px] font-mono text-indigo-400 uppercase tracking-[0.3em] mb-6"
           >
@@ -261,9 +246,9 @@ export default function Skills() {
           </motion.div>
 
           <motion.h2 
-            initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.1 }}
             viewport={{ once: true }}
             className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-white"
           >
@@ -271,13 +256,11 @@ export default function Skills() {
           </motion.h2>
         </div>
 
-        {/* 3D Grid Layout */}
         <div className="grid lg:grid-cols-3 gap-8 md:gap-10">
           {skills.map((skill, index) => (
-            <SkillCard key={index} skill={skill} index={index} />
+            <SkillCard key={index} skill={skill} index={index} onIconHover={playHoverSound} />
           ))}
         </div>
-        
       </div>
     </section>
   );

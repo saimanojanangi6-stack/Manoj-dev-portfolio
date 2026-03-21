@@ -14,6 +14,14 @@ const projects = [
     link: "https://aqua-tau-two.vercel.app/",
     github: "#"
   },
+   {
+    title: "civil-construction-booking",
+    desc: "Developed a full-stack website featuring responsive UI, secure authentication, and efficient database management for seamless user interaction.",
+    image: "/Screenshot 2026-03-08 214921.png", // Ensure this exists in public/
+    tags: ["Next.js", "TailwindCSS","Full Stack Development", "Emailjs"],
+    link: "https://civil-construction-booking.vercel.app//",
+    github: "#"
+  },
   {
     title: "Modern School",
     desc: "A high-fidelity School Management login interface providing secure and user-friendly access for students and teachers.",
